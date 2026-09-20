@@ -1,0 +1,18 @@
+[Desktop Entry]
+Type=Application
+Name=Clippy
+Comment=Native XFCE assistant powered by Claude Computer Use
+Exec=clippy
+Icon=clippy
+Terminal=false
+Categories=Utility;GTK;Office;
+StartupNotify=false
+Actions=Ask;Quit;
+
+[Desktop Action Ask]
+Name=Ask Clippy
+Exec=clippy --ask
+
+[Desktop Action Quit]
+Name=Quit Clippy
+Exec=clippy --quit
