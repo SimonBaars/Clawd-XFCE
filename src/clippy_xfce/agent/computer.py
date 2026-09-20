@@ -334,6 +334,7 @@ class ComputerUse:
         scaler: ScreenScaler | None = None,
         before_shot: Callable[[], None] | None = None,
         after_shot: Callable[[], None] | None = None,
+        on_engage: Callable[[], None] | None = None,
         max_edge: int = 2576,
     ) -> None:
         self.backend = backend or X11Computer()
@@ -341,16 +342,17 @@ class ComputerUse:
         self.scaler = scaler or ScreenScaler(width, height, max_long_edge=max_edge)
         self.before_shot = before_shot
         self.after_shot = after_shot
+        self.on_engage = on_engage
 
     def refresh_scaler(self) -> None:
         width, height = self.backend.size()
         self.scaler = ScreenScaler(width, height, max_long_edge=self.scaler.max_long_edge)
 
-    def screenshot_png(self, region: list[int] | None = None) -> bytes:
+    def screenshot_png(self, region: list[int] | None = None, hide: bool = True) -> bytes:
         from clippy_xfce.gtkutil import run_on_ui
 
         hidden = False
-        if self.before_shot:
+        if hide and self.before_shot:
             try:
                 run_on_ui(self.before_shot, timeout=2.0)
                 hidden = True
@@ -439,6 +441,13 @@ class ComputerUse:
 
     def handle(self, name: str, payload: dict[str, Any]) -> tuple[str | bytes, bool]:
         """Return (text or png-bytes, is_image)."""
+        if self.on_engage:
+            from clippy_xfce.gtkutil import run_on_ui
+
+            try:
+                run_on_ui(self.on_engage, timeout=2.0)
+            except Exception:
+                pass
         action = payload.get("action") or name
         coordinate = payload.get("coordinate")
         modifiers = payload.get("text") if action not in {"type", "key", "hold_key"} else None

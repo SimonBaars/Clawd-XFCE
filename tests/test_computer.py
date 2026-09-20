@@ -14,6 +14,20 @@ def test_parse_keys():
     assert parse_keys("super+Left") == ["Super_L", "Left"]
 
 
+def test_screenshot_can_skip_hide():
+    seen: list[str] = []
+    computer = ComputerUse(
+        FakeComputer(),
+        ScreenScaler(1920, 1200),
+        before_shot=lambda: seen.append("hide"),
+        after_shot=lambda: seen.append("show"),
+    )
+    computer.screenshot_png(hide=False)
+    assert seen == []
+    computer.screenshot_png(hide=True)
+    assert seen == ["hide", "show"]
+
+
 def test_fake_actions():
     backend = FakeComputer()
     computer = ComputerUse(backend, ScreenScaler(1920, 1200))

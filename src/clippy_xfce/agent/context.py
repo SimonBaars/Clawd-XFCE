@@ -14,6 +14,12 @@ from typing import Any
 from clippy_xfce.gtkutil import run_on_ui
 
 
+def is_assistant_window(name: str, app: str = "") -> bool:
+    """Clippy/Clawd must not appear as a computer-use target."""
+    blob = f"{name} {app}".lower()
+    return any(token in blob for token in ("clippy", "clawd", "org.xfce.clippy"))
+
+
 def clipboard_text(limit: int = 800) -> str:
     if not shutil.which("xclip"):
         return ""
@@ -46,19 +52,29 @@ def _wnck_windows() -> dict[str, Any]:
     workspace = screen.get_active_workspace()
     windows = []
     for window in screen.get_windows():
+        name = window.get_name() or ""
+        app = window.get_class_instance_name() or window.get_class_group_name() or ""
         if window.is_skip_tasklist() or window.is_skip_pager():
+            continue
+        if is_assistant_window(name, app):
             continue
         windows.append(
             {
-                "name": window.get_name() or "",
-                "app": (window.get_class_instance_name() or window.get_class_group_name() or ""),
+                "name": name,
+                "app": app,
                 "active": bool(active and window == active),
             }
         )
+    active_name = active.get_name() if active else ""
+    active_app = ""
+    if active:
+        active_app = active.get_class_instance_name() or active.get_class_group_name() or ""
+    if is_assistant_window(active_name, active_app):
+        active_name = next((item["name"] for item in windows if item.get("name")), "")
     return {
         "workspace": workspace.get_name() if workspace else "",
         "windows": windows[:24],
-        "active": (active.get_name() if active else ""),
+        "active": active_name,
     }
 
 

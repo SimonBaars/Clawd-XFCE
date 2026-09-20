@@ -20,6 +20,8 @@ def confirm_action(parent: Gtk.Window | None, summary: str, destructive: bool) -
     dialog.add_button("Allow this turn", Gtk.ResponseType.APPLY)
     dialog.add_button("Allow", Gtk.ResponseType.YES)
     dialog.set_default_response(Gtk.ResponseType.YES if not destructive else Gtk.ResponseType.NO)
+    dialog.set_keep_above(True)
+    dialog.present()
     response = dialog.run()
     dialog.destroy()
     if response == Gtk.ResponseType.YES:

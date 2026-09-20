@@ -147,6 +147,7 @@ class ClippyAgent:
         self.emit = emit or (lambda event: None)
         self.confirm = confirm or (lambda _summary, _danger: True)
         self.cancel = threading.Event()
+        self.computer_paused = False
         self.conversation_id: int | None = None
         self.messages: list[dict[str, Any]] = []
         self._client = None
@@ -181,7 +182,7 @@ class ClippyAgent:
         if self.settings.screenshot_mode != "always":
             return None
         try:
-            return self.computer.screenshot_png()
+            return self.computer.screenshot_png(hide=False)
         except Exception as exc:
             self._emit("warn", f"Could not capture the screen: {exc}")
             return None
@@ -289,6 +290,17 @@ class ClippyAgent:
                 continue
             if self.cancel.is_set():
                 results.append(_tool_result(tool_use_id, "Cancelled by user.", toolset, error=True))
+                failed = True
+                continue
+            if is_computer and self.computer_paused:
+                results.append(
+                    _tool_result(
+                        tool_use_id,
+                        "Computer use is paused. The user will steer you in chat.",
+                        toolset,
+                        error=True,
+                    )
+                )
                 failed = True
                 continue
             try:
