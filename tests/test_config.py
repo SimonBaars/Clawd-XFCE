@@ -5,6 +5,7 @@ def test_sanitize_unknown_model():
     settings = Settings(model="nope", scale=9, max_tokens=2, confirm_mode="maybe", mascot="bonzi").sanitized()
     assert settings.model == "claude-sonnet-5"
     assert settings.scale == 6.0
+    assert Settings(scale=0.2).sanitized().scale == 0.75
     assert settings.max_tokens >= 256
     assert settings.confirm_mode == "destructive"
     assert settings.mascot == "Clippy"

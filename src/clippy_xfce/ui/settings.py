@@ -60,7 +60,7 @@ class SettingsDialog(Gtk.Dialog):
         self.autostart = Gtk.CheckButton(label="Start Clippy when I log in")
         self.autostart.set_active(settings.autostart)
 
-        self.scale = Gtk.SpinButton.new_with_range(1.5, 6.0, 0.25)
+        self.scale = Gtk.SpinButton.new_with_range(0.75, 6.0, 0.25)
         self.scale.set_value(settings.scale)
         self.tokens = Gtk.SpinButton.new_with_range(256, 16000, 256)
         self.tokens.set_value(settings.max_tokens)

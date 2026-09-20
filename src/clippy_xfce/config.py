@@ -86,7 +86,7 @@ class Settings:
             copy.screenshot_mode = "always"
         if copy.mascot not in MASCOT_IDS:
             copy.mascot = "Clippy"
-        copy.scale = min(6.0, max(1.5, float(copy.scale)))
+        copy.scale = min(6.0, max(0.75, float(copy.scale)))
         copy.max_tokens = min(16000, max(256, int(copy.max_tokens)))
         copy.max_iterations = min(60, max(1, int(copy.max_iterations)))
         copy.idle_seconds = min(60.0, max(2.0, float(copy.idle_seconds)))

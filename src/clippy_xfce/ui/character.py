@@ -91,8 +91,8 @@ class CharacterWindow(Gtk.Window):
 
     def display_size(self) -> tuple[int, int]:
         fw, fh = self.agent_def.frame_size
-        target_w = max(80, int(124 * self.scale))
-        target_h = max(60, int(round(fh * target_w / max(fw, 1))))
+        target_w = max(48, int(124 * self.scale))
+        target_h = max(36, int(round(fh * target_w / max(fw, 1))))
         return target_w, target_h
 
     def reload(self, agent: AgentDef, frame_dir) -> None:
