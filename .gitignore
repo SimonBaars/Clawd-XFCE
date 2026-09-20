@@ -1,0 +1,47 @@
+# Virtualenvs and Python junk
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg
+*.egg-info/
+.eggs/
+dist/
+build/
+pip-wheel-metadata/
+
+# Test / type / lint caches
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.tox/
+.coverage
+.coverage.*
+htmlcov/
+.cache/
+
+# Local env and user secrets (never commit keys)
+.env
+.env.*
+!.env.example
+secrets.toml
+
+# Runtime data written under the repo by accident
+*.db
+*.sqlite3
+*.log
+
+# OS / editor noise
+.DS_Store
+Thumbs.db
+*~
+*.swp
+*.swo
+.idea/
+.vscode/
+*.orig
+
+# Extracted sprite/sound cache if someone points XDG at the repo
+frames/
+sounds/
