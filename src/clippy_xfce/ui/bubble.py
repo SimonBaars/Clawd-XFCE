@@ -136,7 +136,7 @@ class BubbleWindow(Gtk.Window):
         row.add(box)
         self.listbox.add(row)
         self.listbox.show_all()
-        GLib.idle_add(self._scroll_end)
+        self.scroll_to_end()
 
     def clear_messages(self) -> None:
         for child in list(self.listbox.get_children()):
@@ -191,9 +191,16 @@ class BubbleWindow(Gtk.Window):
         self._shell.show_all()
         self._tail.queue_draw()
 
+    def scroll_to_end(self) -> None:
+        GLib.idle_add(self._scroll_end)
+        GLib.timeout_add(50, self._scroll_end)
+
     def _scroll_end(self) -> bool:
-        adj = self.listbox.get_parent().get_vadjustment()
-        adj.set_value(adj.get_upper())
+        parent = self.listbox.get_parent()
+        if parent is None:
+            return False
+        adj = parent.get_vadjustment()
+        adj.set_value(max(0.0, adj.get_upper() - adj.get_page_size()))
         return False
 
     def _send(self, *_args) -> None:
@@ -264,7 +271,7 @@ class BubbleWindow(Gtk.Window):
 
 
 def bubble_anchor(
-    cx: int, cw: int, bw: int,     work_x: int, work_w: int, gap: int = 18
+    cx: int, cw: int, bw: int, work_x: int, work_w: int, gap: int = 6
 ) -> tuple[int, str, int | None]:
     """Classic layout: bubble, then mascot on its right. Fallback flips the tail."""
     left = cx - bw - gap

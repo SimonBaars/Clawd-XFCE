@@ -232,6 +232,7 @@ class ClippyApp(Gtk.Application):
             if self.bubble:
                 self.bubble.show_all()
                 self.bubble.focus_input()
+                self.bubble.scroll_to_end()
             return
         if self.character:
             self.character.show_all()
@@ -244,6 +245,7 @@ class ClippyApp(Gtk.Application):
         self._place_bubble(nudge_mascot=True)
         GLib.idle_add(self._place_bubble_after_layout)
         self.bubble.focus_input()
+        self.bubble.scroll_to_end()
         self.character.play_mood("talk")
 
     def toggle_bubble(self) -> None:
