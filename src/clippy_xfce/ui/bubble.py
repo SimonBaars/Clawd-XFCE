@@ -5,8 +5,9 @@ from __future__ import annotations
 from collections.abc import Callable
 
 import clippy_xfce.gi_setup  # noqa: F401
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango
 
+from clippy_xfce.markdown import to_pango
 from clippy_xfce.ui.help import run_shortcuts
 
 # Must match the real header (buttons + title). 400 was a lie: GTK
@@ -163,10 +164,12 @@ class BubbleWindow(Gtk.Window):
         return False
 
     def add_message(self, kind: str, text: str) -> None:
-        label = Gtk.Label(label=text, xalign=0)
+        label = Gtk.Label(xalign=0)
         label.set_line_wrap(True)
         label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
         label.set_selectable(True)
+        _set_markdown(label, text)
+        label.connect("activate-link", _open_link)
         _fit_label(label)
         box = Gtk.Box()
         box.get_style_context().add_class("clippy-msg")
@@ -327,6 +330,22 @@ def bubble_anchor(
     if mascot_x + cw <= work_x + work_w - 8:
         return classic_x, "right", mascot_x
     return cx + cw + gap, "left", None
+
+
+def _set_markdown(label: Gtk.Label, text: str) -> None:
+    markup = to_pango(text)
+    try:
+        label.set_markup(markup)
+    except Exception:
+        label.set_text(text)
+
+
+def _open_link(_label: Gtk.Label, uri: str) -> bool:
+    try:
+        Gio.AppInfo.launch_default_for_uri(uri, None)
+    except Exception:
+        return False
+    return True
 
 
 def _fit_label(label: Gtk.Label, ellipsize: bool = False, width_chars: int = 0) -> None:

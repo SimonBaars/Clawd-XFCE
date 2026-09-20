@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import clippy_xfce.gi_setup  # noqa: F401
-from gi.repository import Gdk, GLib, Gtk, Pango
+from gi.repository import Gdk, Gio, GLib, Gtk, Pango
+
+from clippy_xfce.markdown import to_pango
 
 
 def clamp_seconds(value: object) -> int:
@@ -48,6 +50,7 @@ class FlashWindow(Gtk.Window):
         self.body.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
         self.body.set_max_width_chars(48)
         self.body.get_style_context().add_class("clippy-sub")
+        self.body.connect("activate-link", _open_link)
         chrome.pack_start(self.who, False, False, 0)
         chrome.pack_start(self.body, False, False, 0)
         self.add(chrome)
@@ -63,7 +66,11 @@ class FlashWindow(Gtk.Window):
         caption = caption_text(text)
         if not caption:
             return
-        self.body.set_text(caption)
+        markup = to_pango(caption)
+        try:
+            self.body.set_markup(markup)
+        except Exception:
+            self.body.set_text(caption)
         self.show_all()
         GLib.idle_add(self._place)
         if self._timer:
@@ -92,3 +99,11 @@ class FlashWindow(Gtk.Window):
         width = max(self.get_allocated_width(), self.get_size()[0])
         self.move(work.x + max(8, (work.width - width) // 2), work.y + 18)
         return False
+
+
+def _open_link(_label: Gtk.Label, uri: str) -> bool:
+    try:
+        Gio.AppInfo.launch_default_for_uri(uri, None)
+    except Exception:
+        return False
+    return True

@@ -8,7 +8,7 @@ A native XFCE companion that sits on your desktop, talks in a speech bubble, rem
 
 - Authentic Office Assistant animations (43 of them) plus the original sound set
 - Always-on-top paperclip that you can drag, right-click, or summon with `Ctrl+Alt+C`
-- Speech-bubble chat with conversation history
+- Speech-bubble chat with conversation history and simple markdown (**bold**, *italic*, `code`, lists, links)
 - Long-term memory across chats
 - Live desktop context: windows, workspace, clipboard, time
 - Screen capture for Claude, with Clippy hidden so it does not photobomb itself
