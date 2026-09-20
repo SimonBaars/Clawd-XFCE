@@ -69,9 +69,10 @@ class BubbleWindow(Gtk.Window):
         self.title_label.get_style_context().add_class("clippy-title")
         self.status_label = Gtk.Label(label="Ctrl+Alt+C to ask · drag to move · Escape to stop", xalign=0)
         self.status_label.get_style_context().add_class("clippy-sub")
-        self.status_label.set_ellipsize(Pango.EllipsizeMode.END)
-        self.status_label.set_max_width_chars(36)
-        self.title_label.set_ellipsize(Pango.EllipsizeMode.END)
+        _fit_label(self.title_label, ellipsize=True)
+        _fit_label(self.status_label, ellipsize=True)
+        titles.set_hexpand(True)
+        titles.set_size_request(0, -1)
         titles.pack_start(self.title_label, False, False, 0)
         titles.pack_start(self.status_label, False, False, 0)
         header.pack_start(titles, True, True, 0)
@@ -87,12 +88,11 @@ class BubbleWindow(Gtk.Window):
         self._chrome.pack_start(header, False, False, 0)
 
         scrolled = Gtk.ScrolledWindow()
-        scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scrolled.set_policy(Gtk.PolicyType.AUTOMATIC, Gtk.PolicyType.AUTOMATIC)
         scrolled.set_hexpand(True)
         scrolled.set_vexpand(True)
-        if hasattr(scrolled, "set_propagate_natural_width"):
-            scrolled.set_propagate_natural_width(False)
-            scrolled.set_propagate_natural_height(False)
+        scrolled.set_propagate_natural_width(False)
+        scrolled.set_propagate_natural_height(False)
         self.listbox = Gtk.ListBox()
         self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
         self.listbox.get_style_context().add_class("clippy-messages")
@@ -102,6 +102,8 @@ class BubbleWindow(Gtk.Window):
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
         self.entry = Gtk.Entry()
         self.entry.set_placeholder_text("Ask Clippy, or drag the paperclip anywhere…")
+        self.entry.set_width_chars(8)
+        self.entry.set_hexpand(True)
         self.entry.get_style_context().add_class("clippy-input")
         self.entry.connect("activate", self._send)
         self.entry.connect("key-press-event", self._keys)
@@ -117,6 +119,8 @@ class BubbleWindow(Gtk.Window):
 
         self.connect("button-press-event", self._drag)
         self.connect("key-press-event", self._keys)
+        self.connect("realize", lambda *_: self._pin_size())
+        self.connect("configure-event", self._configured)
 
     def set_busy(self, busy: bool, status: str | None = None) -> None:
         self._busy = busy
@@ -133,9 +137,11 @@ class BubbleWindow(Gtk.Window):
             self.status_label.set_text("Working…  Escape stops, Steer redirects.")
         else:
             self.status_label.set_text("Ctrl+Alt+C to ask · drag to move · Escape to stop")
+        self._pin_size()
 
     def set_status(self, text: str) -> None:
         self.status_label.set_text(text)
+        self._pin_size()
 
     def set_mascot_name(self, name: str) -> None:
         self.title_label.set_text(name)
@@ -147,17 +153,25 @@ class BubbleWindow(Gtk.Window):
 
     def focus_input(self) -> None:
         self.show_all()
-        self.resize(BUBBLE_WIDTH, BUBBLE_HEIGHT)
+        self._pin_size()
         self.present()
         self.entry.grab_focus()
+
+    def _pin_size(self) -> bool:
+        self.resize(BUBBLE_WIDTH, BUBBLE_HEIGHT)
+        return False
+
+    def _configured(self, _win, event) -> bool:
+        if int(event.width) != BUBBLE_WIDTH or int(event.height) != BUBBLE_HEIGHT:
+            GLib.idle_add(self._pin_size)
+        return False
 
     def add_message(self, kind: str, text: str) -> None:
         label = Gtk.Label(label=text, xalign=0)
         label.set_line_wrap(True)
         label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
-        label.set_max_width_chars(36)
-        label.set_hexpand(True)
         label.set_selectable(True)
+        _fit_label(label)
         box = Gtk.Box()
         box.get_style_context().add_class("clippy-msg")
         box.get_style_context().add_class(kind)
@@ -166,6 +180,7 @@ class BubbleWindow(Gtk.Window):
         row.add(box)
         self.listbox.add(row)
         self.listbox.show_all()
+        self._pin_size()
         self.scroll_to_end()
 
     def clear_messages(self) -> None:
@@ -316,6 +331,15 @@ def bubble_anchor(
     if mascot_x + cw <= work_x + work_w - 8:
         return classic_x, "right", mascot_x
     return cx + cw + gap, "left", None
+
+
+def _fit_label(label: Gtk.Label, ellipsize: bool = False) -> None:
+    """Keep labels from reporting a huge natural width and stretching the window."""
+    label.set_hexpand(True)
+    label.set_xalign(0)
+    label.set_size_request(0, -1)
+    if ellipsize:
+        label.set_ellipsize(Pango.EllipsizeMode.END)
 
 
 def _btn(label: str, handler) -> Gtk.Button:
