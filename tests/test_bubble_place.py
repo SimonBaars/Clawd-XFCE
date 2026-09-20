@@ -1,4 +1,9 @@
-from clippy_xfce.ui.bubble import bubble_anchor
+from clippy_xfce.ui.bubble import BUBBLE_HEIGHT, BUBBLE_WIDTH, bubble_anchor
+
+
+def test_bubble_size_is_fixed():
+    assert BUBBLE_WIDTH == 400
+    assert BUBBLE_HEIGHT == 460
 
 
 def test_classic_mascot_on_the_right():

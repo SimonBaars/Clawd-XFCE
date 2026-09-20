@@ -9,6 +9,9 @@ from gi.repository import Gdk, GLib, Gtk, Pango
 
 from clippy_xfce.ui.help import run_shortcuts
 
+BUBBLE_WIDTH = 400
+BUBBLE_HEIGHT = 460
+
 
 class BubbleWindow(Gtk.Window):
     def __init__(self) -> None:
@@ -18,7 +21,15 @@ class BubbleWindow(Gtk.Window):
         self.set_skip_taskbar_hint(True)
         self.set_skip_pager_hint(True)
         self.set_type_hint(Gdk.WindowTypeHint.UTILITY)
-        self.set_default_size(400, 460)
+        self.set_resizable(False)
+        self.set_default_size(BUBBLE_WIDTH, BUBBLE_HEIGHT)
+        self.set_size_request(BUBBLE_WIDTH, BUBBLE_HEIGHT)
+        geom = Gdk.Geometry()
+        geom.min_width = geom.max_width = BUBBLE_WIDTH
+        geom.min_height = geom.max_height = BUBBLE_HEIGHT
+        self.set_geometry_hints(
+            None, geom, Gdk.WindowHints.MIN_SIZE | Gdk.WindowHints.MAX_SIZE
+        )
         self.set_app_paintable(True)
         self.get_style_context().add_class("clippy-bubble")
         self.stick()
@@ -58,6 +69,9 @@ class BubbleWindow(Gtk.Window):
         self.title_label.get_style_context().add_class("clippy-title")
         self.status_label = Gtk.Label(label="Ctrl+Alt+C to ask · drag to move · Escape to stop", xalign=0)
         self.status_label.get_style_context().add_class("clippy-sub")
+        self.status_label.set_ellipsize(Pango.EllipsizeMode.END)
+        self.status_label.set_max_width_chars(36)
+        self.title_label.set_ellipsize(Pango.EllipsizeMode.END)
         titles.pack_start(self.title_label, False, False, 0)
         titles.pack_start(self.status_label, False, False, 0)
         header.pack_start(titles, True, True, 0)
@@ -76,6 +90,9 @@ class BubbleWindow(Gtk.Window):
         scrolled.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scrolled.set_hexpand(True)
         scrolled.set_vexpand(True)
+        if hasattr(scrolled, "set_propagate_natural_width"):
+            scrolled.set_propagate_natural_width(False)
+            scrolled.set_propagate_natural_height(False)
         self.listbox = Gtk.ListBox()
         self.listbox.set_selection_mode(Gtk.SelectionMode.NONE)
         self.listbox.get_style_context().add_class("clippy-messages")
@@ -130,6 +147,7 @@ class BubbleWindow(Gtk.Window):
 
     def focus_input(self) -> None:
         self.show_all()
+        self.resize(BUBBLE_WIDTH, BUBBLE_HEIGHT)
         self.present()
         self.entry.grab_focus()
 
@@ -137,7 +155,8 @@ class BubbleWindow(Gtk.Window):
         label = Gtk.Label(label=text, xalign=0)
         label.set_line_wrap(True)
         label.set_line_wrap_mode(Pango.WrapMode.WORD_CHAR)
-        label.set_max_width_chars(42)
+        label.set_max_width_chars(36)
+        label.set_hexpand(True)
         label.set_selectable(True)
         box = Gtk.Box()
         box.get_style_context().add_class("clippy-msg")
@@ -168,11 +187,9 @@ class BubbleWindow(Gtk.Window):
     def place_near(self, char: Gtk.Window, nudge_mascot: bool = False) -> None:
         cx, cy = char.get_position()
         cw, ch = char.get_size()
-        bw, bh = self.get_size()
+        bw, bh = BUBBLE_WIDTH, BUBBLE_HEIGHT
         cw = max(cw, char.get_allocated_width() or 0)
         ch = max(ch, char.get_allocated_height() or 0)
-        bw = max(bw, self.get_allocated_width() or 0)
-        bh = max(bh, self.get_allocated_height() or 0)
         display = self.get_display()
         monitor = display.get_monitor_at_window(char.get_window()) if char.get_window() else display.get_primary_monitor()
         work = monitor.get_workarea()
