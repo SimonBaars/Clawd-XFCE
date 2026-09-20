@@ -37,6 +37,7 @@ def shortcut_lines(hotkey: str, hold_key: str = "Shift", dodge: bool = False) ->
     ]
     if dodge:
         rows.append((f"Hold {hold_key}", "Keep the mascot still so you can click it"))
+        rows.append(("Chat open", "The mascot stays put while the chat is open"))
     return rows
 
 

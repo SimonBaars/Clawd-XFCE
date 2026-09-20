@@ -58,6 +58,7 @@ class CharacterWindow(Gtk.Window):
         self.on_click: Callable[[], None] | None = None
         self.on_menu: Callable[[Gtk.Menu], None] | None = None
         self.on_moved: Callable[[], None] | None = None
+        self.chat_is_open: Callable[[], bool] | None = None
 
         self.set_app_paintable(True)
         self.set_decorated(False)
@@ -263,6 +264,10 @@ class CharacterWindow(Gtk.Window):
         if not self._dodge_enabled:
             self._dodge_timer = 0
             return False
+        if self.chat_is_open and self.chat_is_open():
+            if self._skitter_path:
+                self._skitter_path = []
+            return True
         if self._skitter_path or self._dragging or not self.get_visible() or self._hidden_for_shot:
             return True
         state = self._pointer_state()

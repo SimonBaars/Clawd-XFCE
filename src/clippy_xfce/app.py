@@ -130,6 +130,7 @@ class ClippyApp(Gtk.Application):
         self.bubble.on_new = self._new_chat
         self.bubble.on_history = self._history
         self.bubble.on_settings = self._settings
+        self.character.chat_is_open = lambda: bool(self.bubble and self.bubble.get_visible())
 
         self.gate = ActionGate(lambda: self.bubble, self.settings.confirm_mode)
         computer = ComputerUse(

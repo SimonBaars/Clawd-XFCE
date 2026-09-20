@@ -15,3 +15,4 @@ def test_shortcut_lines_include_dodge_only_when_on():
     assert not any(row[0].startswith("Hold ") for row in idle)
     held = shortcut_lines("<Ctrl><Alt>c", "Alt", dodge=True)
     assert ("Hold Alt", "Keep the mascot still so you can click it") in held
+    assert ("Chat open", "The mascot stays put while the chat is open") in held
