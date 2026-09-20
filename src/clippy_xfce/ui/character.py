@@ -11,6 +11,7 @@ from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
 from PIL import Image
 
 from clippy_xfce.animator import Animator
+from clippy_xfce.dodge import flee_position, hold_is_down, normalize_hold_key, pointer_hits, skitter_steps
 from clippy_xfce.sounds import SoundPlayer
 from clippy_xfce.sprites import AgentDef, compose_frame
 
@@ -49,6 +50,11 @@ class CharacterWindow(Gtk.Window):
         self._dragging = False
         self._hidden_for_shot = False
         self._was_visible = True
+        self._dodge_enabled = False
+        self._dodge_hold_key = "Shift"
+        self._dodge_timer = 0
+        self._skitter_timer = 0
+        self._skitter_path: list[tuple[int, int]] = []
         self.on_click: Callable[[], None] | None = None
         self.on_menu: Callable[[Gtk.Menu], None] | None = None
         self.on_moved: Callable[[], None] | None = None
@@ -114,6 +120,14 @@ class CharacterWindow(Gtk.Window):
         self._cache.clear()
         self._apply_size()
         self._show_frame()
+
+    def set_dodge(self, enabled: bool, hold_key: str = "Shift") -> None:
+        self._dodge_hold_key = normalize_hold_key(hold_key)
+        self._dodge_enabled = bool(enabled)
+        if self._dodge_enabled:
+            self._arm_dodge()
+        else:
+            self._clear_dodge()
 
     def place_default(self) -> None:
         display = self.get_display()
@@ -210,6 +224,83 @@ class CharacterWindow(Gtk.Window):
         if self._idle_timer:
             GLib.source_remove(self._idle_timer)
             self._idle_timer = 0
+        self._clear_dodge()
+
+    def _clear_dodge(self) -> None:
+        if self._dodge_timer:
+            GLib.source_remove(self._dodge_timer)
+            self._dodge_timer = 0
+        if self._skitter_timer:
+            GLib.source_remove(self._skitter_timer)
+            self._skitter_timer = 0
+        self._skitter_path = []
+
+    def _arm_dodge(self) -> None:
+        if self._dodge_timer:
+            return
+        self._dodge_timer = GLib.timeout_add(40, self._dodge_poll)
+
+    def _workarea(self) -> tuple[int, int, int, int]:
+        display = self.get_display()
+        window = self.get_window()
+        monitor = display.get_monitor_at_window(window) if window else (display.get_primary_monitor() or display.get_monitor(0))
+        work = monitor.get_workarea()
+        return int(work.x), int(work.y), int(work.width), int(work.height)
+
+    def _pointer_state(self) -> tuple[int, int, int] | None:
+        display = self.get_display()
+        if display is None:
+            return None
+        try:
+            device = display.get_default_seat().get_pointer()
+            _screen, mx, my = device.get_position()
+            keymap = Gdk.Keymap.get_for_display(display)
+            return int(mx), int(my), int(keymap.get_modifier_state())
+        except Exception:
+            return None
+
+    def _dodge_poll(self) -> bool:
+        if not self._dodge_enabled:
+            self._dodge_timer = 0
+            return False
+        if self._skitter_path or self._dragging or not self.get_visible() or self._hidden_for_shot:
+            return True
+        state = self._pointer_state()
+        if state is None:
+            return True
+        mx, my, modifiers = state
+        if hold_is_down(self._dodge_hold_key, modifiers):
+            return True
+        x, y = self.get_position()
+        w, h = self.display_size()
+        if not pointer_hits(mx, my, x, y, w, h):
+            return True
+        nx, ny = flee_position(mx, my, x, y, w, h, self._workarea())
+        if abs(nx - x) + abs(ny - y) < 8:
+            return True
+        self._start_skitter(x, y, nx, ny)
+        return True
+
+    def _start_skitter(self, x: int, y: int, nx: int, ny: int) -> None:
+        self._skitter_path = skitter_steps(x, y, nx, ny, work=self._workarea(), size=self.display_size())
+        if self.animator.has("Scurry"):
+            self.play("Scurry", interrupt=True)
+        else:
+            self.play_mood("dodge", interrupt=True)
+        if self._skitter_timer:
+            GLib.source_remove(self._skitter_timer)
+        self._skitter_timer = GLib.timeout_add(18, self._skitter_tick)
+
+    def _skitter_tick(self) -> bool:
+        if not self._skitter_path:
+            self._skitter_timer = 0
+            if self.on_moved:
+                self.on_moved()
+            return False
+        self.move(*self._skitter_path.pop(0))
+        if self.on_moved:
+            self.on_moved()
+        return True
 
     def _set_cursor(self, name: str) -> None:
         window = self.get_window()

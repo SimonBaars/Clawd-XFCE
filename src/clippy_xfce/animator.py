@@ -39,6 +39,7 @@ MOOD_ANIMATIONS = {
     "error": ("Alert", "GetAttention", "CheckingSomething"),
     "bye": ("GoodBye", "Hide"),
     "rest": ("RestPose",),
+    "dodge": ("Scurry", "Wave", "GetAttention", "GestureRight"),
 }
 
 

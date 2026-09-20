@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Any
 
+from clippy_xfce.dodge import HOLD_KEYS, normalize_hold_key
 from clippy_xfce.mascots import MASCOT_IDS
 from clippy_xfce.paths import config_path, secrets_path
 
@@ -71,6 +72,8 @@ class Settings:
     idle_seconds: float = 6.0
     hotkey: str = "<Ctrl><Alt>c"
     mascot: str = "Clippy"
+    dodge_mouse: bool = False
+    dodge_hold_key: str = "Shift"
     config_version: int = 3
     api_key: str = ""
 
@@ -86,6 +89,9 @@ class Settings:
             copy.screenshot_mode = "always"
         if copy.mascot not in MASCOT_IDS:
             copy.mascot = "Clippy"
+        copy.dodge_hold_key = normalize_hold_key(copy.dodge_hold_key)
+        if copy.dodge_hold_key not in HOLD_KEYS:
+            copy.dodge_hold_key = "Shift"
         copy.scale = min(6.0, max(0.75, float(copy.scale)))
         copy.max_tokens = min(16000, max(256, int(copy.max_tokens)))
         copy.max_iterations = min(60, max(1, int(copy.max_iterations)))

@@ -117,6 +117,7 @@ class ClippyApp(Gtk.Application):
         else:
             self.character.place_default()
         self.character.show_all()
+        self.character.set_dodge(self.settings.dodge_mouse, self.settings.dodge_hold_key)
 
         self.bubble = BubbleWindow()
         self.bubble.set_application(self)
@@ -411,6 +412,7 @@ class ClippyApp(Gtk.Application):
         if self.character:
             self.character.sounds.enabled = self.settings.sounds
             self.character.set_scale(self.settings.scale)
+            self.character.set_dodge(self.settings.dodge_mouse, self.settings.dodge_hold_key)
             if previous != self.settings.mascot:
                 self._reload_mascot()
         install_hotkey(self.settings.hotkey)

@@ -20,6 +20,8 @@ def test_settings_and_history_dialogs():
     settings = SettingsDialog(None, Settings(api_key="sk-ant-testkey-12345678901234567890"))
     result = settings.result_settings()
     assert result.model
+    assert result.dodge_mouse is False
+    assert result.dodge_hold_key == "Shift"
     settings.destroy()
 
     store = MemoryStore()

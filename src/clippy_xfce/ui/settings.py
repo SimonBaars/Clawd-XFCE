@@ -6,6 +6,7 @@ import clippy_xfce.gi_setup  # noqa: F401
 from gi.repository import Gtk
 
 from clippy_xfce.config import CONFIRM_MODES, MODELS, SCREENSHOT_MODES, TOOL_MODES, Settings
+from clippy_xfce.dodge import HOLD_KEYS
 from clippy_xfce.mascots import MASCOTS
 
 
@@ -59,6 +60,14 @@ class SettingsDialog(Gtk.Dialog):
         self.greet.set_active(settings.proactive_greeting)
         self.autostart = Gtk.CheckButton(label="Start Clippy when I log in")
         self.autostart.set_active(settings.autostart)
+        self.dodge = Gtk.CheckButton(label="Skitter away from the mouse")
+        self.dodge.set_active(settings.dodge_mouse)
+
+        self.dodge_hold = Gtk.ComboBoxText()
+        for key in HOLD_KEYS:
+            self.dodge_hold.append_text(key)
+        hold = settings.dodge_hold_key if settings.dodge_hold_key in HOLD_KEYS else "Shift"
+        self.dodge_hold.set_active(HOLD_KEYS.index(hold))
 
         self.scale = Gtk.SpinButton.new_with_range(0.75, 6.0, 0.25)
         self.scale.set_value(settings.scale)
@@ -84,6 +93,7 @@ class SettingsDialog(Gtk.Dialog):
             ("Attach screenshots", self.shots),
             ("Mascot", self.mascot),
             ("Hotkey", self.hotkey),
+            ("Hold to keep still", self.dodge_hold),
             ("Mascot size", self.scale),
             ("Max tokens", self.tokens),
             ("Max steps", self.iters),
@@ -92,7 +102,16 @@ class SettingsDialog(Gtk.Dialog):
             grid.attach(Gtk.Label(label=label, xalign=0), 0, index, 1, 1)
             grid.attach(widget, 1, index, 1, 1)
         checks = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
-        for widget in (self.computer, self.bash, self.editor, self.sounds, self.hide_self, self.greet, self.autostart):
+        for widget in (
+            self.computer,
+            self.bash,
+            self.editor,
+            self.sounds,
+            self.hide_self,
+            self.greet,
+            self.autostart,
+            self.dodge,
+        ):
             checks.pack_start(widget, False, False, 0)
         grid.attach(checks, 0, len(rows), 2, 1)
         self.show_all()
@@ -121,6 +140,8 @@ class SettingsDialog(Gtk.Dialog):
             idle_seconds=self.settings.idle_seconds,
             hotkey=self.hotkey.get_text().strip() or "<Ctrl><Alt>c",
             mascot=self.mascot.get_active_id() or self.settings.mascot,
+            dodge_mouse=self.dodge.get_active(),
+            dodge_hold_key=self.dodge_hold.get_active_text() or "Shift",
             config_version=self.settings.config_version,
             api_key=self.api.get_text().strip(),
         )

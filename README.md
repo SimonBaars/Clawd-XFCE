@@ -46,7 +46,7 @@ The first run opens settings if no key is found. Clippy also looks for `ANTHROPI
 - While it is working: the mascot hides so it cannot click itself. **Escape** still stops (it is grabbed globally while hidden). Tray **Stop** and `clippy --stop` also halt. `Ctrl+Alt+C` brings the bubble back to steer.
 - Escape hides the bubble when Clippy is idle
 - Right-click for Stop, Pause computer use, New chat, History, Settings, Hide, Quit
-- Settings: mascot (Clippy or Clawd), model, computer-use confirmations, screenshot policy, size, sounds, autostart
+- Settings: mascot (Clippy or Clawd), model, computer-use confirmations, screenshot policy, size, sounds, autostart, optional mouse-dodge (hold Shift to click)
 
 ```bash
 clippy              # start the companion

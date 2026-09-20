@@ -267,6 +267,7 @@ def _clawd_def(width: int, height: int) -> AgentDef:
     snooze = _frames((0, 200), (1, 160), (0, 240), (1, 160), (0, 200))
     hide = _frames((0, 70), (12, 90), (22, 110), (0, 80))
     show = _frames((22, 80), (12, 80), (10, 90), (0, 140))
+    scurry = _frames((0, 40), (16, 45), (18, 45), (17, 45), (19, 45), (16, 45), (18, 45), (0, 50))
     goodbye = _frames((0, 80), (17, 100), (16, 100), (17, 100), (12, 90), (0, 120))
     write = _frames((0, 80), (8, 120), (5, 120), (9, 120), (0, 100))
     artsy = _frames((0, 80), (14, 100), (20, 110), (15, 100), (11, 90), (0, 120))
@@ -297,6 +298,7 @@ def _clawd_def(width: int, height: int) -> AgentDef:
             "GetArtsy": artsy,
             "Alert": alert,
             "GetAttention": attention,
+            "Scurry": scurry,
             "Idle1_1": blink,
             "IdleAtom": process,
             "IdleEyeBrowRaise": look_up,

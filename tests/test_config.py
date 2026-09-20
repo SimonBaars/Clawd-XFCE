@@ -9,6 +9,9 @@ def test_sanitize_unknown_model():
     assert settings.max_tokens >= 256
     assert settings.confirm_mode == "destructive"
     assert settings.mascot == "Clippy"
+    assert Settings().dodge_mouse is False
+    assert Settings().dodge_hold_key == "Shift"
+    assert Settings(dodge_hold_key="nope").sanitized().dodge_hold_key == "Shift"
 
 
 def test_roundtrip(tmp_path, monkeypatch):
