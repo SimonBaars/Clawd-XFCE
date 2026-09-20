@@ -2,6 +2,8 @@
 
 A native XFCE companion that sits on your desktop, talks in a speech bubble, remembers past chats, looks at the screen, and uses **Claude Computer Use** to click, type, and run tools.
 
+![Clawd on the desktop with the speech-bubble chat](docs/screenshot.png)
+
 ## What you get
 
 - Authentic Office Assistant animations (43 of them) plus the original sound set
