@@ -7,7 +7,7 @@ def test_rest_and_queue():
     player = Animator(agent)
     view = player.current_view()
     assert view.images
-    assert view.duration_ms >= 10
+    assert view.duration_ms >= 50
     player.play("Wave", interrupt=True)
     assert player.current == "Wave"
     player.play("Writing")

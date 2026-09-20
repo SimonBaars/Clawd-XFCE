@@ -108,7 +108,7 @@ class Animator:
             animation=self.current,
             index=self.index,
             images=list(frame.get("images") or [[0, 0]]),
-            duration_ms=max(10, int(frame.get("duration") or 100)),
+            duration_ms=max(50, int(frame.get("duration") or 100)),
             sound=str(frame["sound"]) if frame.get("sound") is not None else None,
         )
 

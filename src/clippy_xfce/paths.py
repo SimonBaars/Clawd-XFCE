@@ -45,6 +45,12 @@ def frame_cache_dir(name: str = "Clippy") -> Path:
     return path
 
 
+def hd_frame_dir(name: str = "Clippy") -> Path:
+    path = cache_dir() / "frames" / f"{name}@4x"
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
 def sound_cache_dir(name: str = "Clippy") -> Path:
     path = cache_dir() / "sounds" / name
     path.mkdir(parents=True, exist_ok=True)
