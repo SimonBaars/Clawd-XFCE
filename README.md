@@ -39,14 +39,17 @@ The first run opens settings if no key is found. Clippy also looks for `ANTHROPI
 
 ## Use
 
-- Click Clippy or press `Ctrl+Alt+C` to talk
-- Ask it to look at the screen, click things, edit files, or remember facts
-- Right-click Clippy for New chat, History, Settings, Hide, Quit
-- Settings: model, computer-use confirmations, screenshot policy, size, sounds, autostart
+- Click Clippy or press `Ctrl+Alt+C` to talk (also works from the tray)
+- Drag Clippy anywhere — the bubble follows
+- While it is working: the mascot hides so it cannot click itself. **Stop** from the tray, `clippy --stop`, or press `Ctrl+Alt+C` to steer.
+- Escape hides the bubble when Clippy is idle
+- Right-click for Stop, Pause computer use, New chat, History, Settings, Hide, Quit
+- Settings: mascot (Clippy or Clawd), model, computer-use confirmations, screenshot policy, size, sounds, autostart
 
 ```bash
 clippy              # start the companion
-clippy --ask        # show the speech bubble
+clippy --ask        # summon Clippy and the speech bubble
+clippy --stop       # halt the current task
 clippy --new        # start a fresh chat (keeps long-term memory)
 clippy --say "…"    # send a message to the running Clippy
 clippy --quit
