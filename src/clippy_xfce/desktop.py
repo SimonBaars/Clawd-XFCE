@@ -54,3 +54,32 @@ def install_desktop_files(autostart: bool, icon: Path | None = None) -> None:
         svg_dir.mkdir(parents=True, exist_ok=True)
         shutil.copy2(bundled, svg_dir / "clippy.svg")
     os.system("update-desktop-database ~/.local/share/applications >/dev/null 2>&1")
+
+
+def gtk_accel_to_xfce(accel: str) -> str:
+    mapping = {
+        "<Ctrl>": "<Primary>",
+        "<Control>": "<Primary>",
+        "<Alt>": "<Alt>",
+        "<Shift>": "<Shift>",
+        "<Super>": "<Super>",
+    }
+    text = accel
+    for src, dest in mapping.items():
+        text = text.replace(src, dest)
+    return text
+
+
+def install_hotkey(accel: str) -> None:
+    if not shutil.which("xfconf-query"):
+        return
+    key = gtk_accel_to_xfce(accel)
+    prop = f"/commands/custom/{key}"
+    command = f"{app_command()} --ask"
+    existing = os.popen(f"xfconf-query -c xfce4-keyboard-shortcuts -p '{prop}' 2>/dev/null").read().strip()
+    if existing and "clippy" not in existing:
+        return
+    os.system(
+        "xfconf-query -c xfce4-keyboard-shortcuts "
+        f"-p '{prop}' -n -t string -s '{command}' >/dev/null 2>&1"
+    )
