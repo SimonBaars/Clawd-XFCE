@@ -9,6 +9,7 @@ from dataclasses import asdict, dataclass, fields
 from pathlib import Path
 from typing import Any
 
+from clippy_xfce.mascots import MASCOT_IDS
 from clippy_xfce.paths import config_path, secrets_path
 
 try:
@@ -60,13 +61,17 @@ class Settings:
     hide_self_in_screenshots: bool = True
     sounds: bool = True
     scale: float = 2.0
+    pos_x: int = -1
+    pos_y: int = -1
     start_hidden: bool = False
     autostart: bool = False
     proactive_greeting: bool = True
     max_screenshot_edge: int = 2576
     keep_screenshots: int = 8
-    idle_seconds: float = 12.0
+    idle_seconds: float = 6.0
     hotkey: str = "<Ctrl><Alt>c"
+    mascot: str = "Clippy"
+    config_version: int = 3
     api_key: str = ""
 
     def sanitized(self) -> "Settings":
@@ -79,9 +84,13 @@ class Settings:
             copy.confirm_mode = "destructive"
         if copy.screenshot_mode not in SCREENSHOT_MODES:
             copy.screenshot_mode = "always"
-        copy.scale = min(3.0, max(1.0, float(copy.scale)))
+        if copy.mascot not in MASCOT_IDS:
+            copy.mascot = "Clippy"
+        copy.scale = min(6.0, max(1.5, float(copy.scale)))
         copy.max_tokens = min(16000, max(256, int(copy.max_tokens)))
         copy.max_iterations = min(60, max(1, int(copy.max_iterations)))
+        copy.idle_seconds = min(60.0, max(2.0, float(copy.idle_seconds)))
+        copy.config_version = max(1, int(copy.config_version or 1))
         return copy
 
 
@@ -133,8 +142,20 @@ def load_settings() -> Settings:
     raw = _read_toml(config_path())
     known = {item.name for item in fields(Settings)}
     values = {key: value for key, value in raw.items() if key in known and key != "api_key"}
+    version = int(values.get("config_version") or 1)
+    migrated = False
+    if version < 2 and values.get("idle_seconds") == 12.0:
+        values["idle_seconds"] = 6.0
+        migrated = True
+    if version < 3 and values.get("scale") == 4.0:
+        # HD frames stay 4x; the on-screen mascot goes back to the original size.
+        values["scale"] = 2.0
+        migrated = True
+    values["config_version"] = max(version, 3)
     settings = Settings(**values).sanitized()
     settings.api_key = discover_api_key()
+    if migrated and config_path().exists():
+        save_settings(settings)
     return settings
 
 

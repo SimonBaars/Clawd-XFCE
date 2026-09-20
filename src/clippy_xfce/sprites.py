@@ -11,6 +11,7 @@ from typing import Any, Iterator
 from PIL import Image
 
 from clippy_xfce.paths import agent_source_dir, cache_dir, frame_cache_dir, sound_cache_dir
+from clippy_xfce.upscale import UPSCALE, enhance_dir
 
 AGENT_JS_RE = re.compile(r"clippy\.ready\(\s*'[^']+'\s*,\s*", re.S)
 SOUNDS_JS_RE = re.compile(r"clippy\.soundsReady\(\s*'[^']+'\s*,\s*", re.S)
@@ -85,7 +86,11 @@ def extract_frames(agent: AgentDef | None = None, source: Path | None = None) ->
         "size": sheet_path.stat().st_size,
         "frame": list(agent.frame_size),
     }
+    hd_dir = dest.with_name(dest.name + "@4x")
     if marker.exists() and json.loads(marker.read_text()) == stamp and (dest / "0_0.png").exists():
+        enhance_dir(dest, hd_dir, UPSCALE)
+        hd_rest = hd_dir / "0_0.png"
+        write_icon(hd_rest if hd_rest.exists() else dest / "0_0.png")
         return dest
 
     sheet = Image.open(sheet_path).convert("RGBA")
@@ -96,7 +101,9 @@ def extract_frames(agent: AgentDef | None = None, source: Path | None = None) ->
     # Always keep a rest pose even if unused
     sheet.crop((0, 0, fw, fh)).save(dest / "0_0.png")
     marker.write_text(json.dumps(stamp), encoding="utf-8")
-    write_icon(dest / "0_0.png")
+    enhance_dir(dest, hd_dir, UPSCALE)
+    hd_rest = hd_dir / "0_0.png"
+    write_icon(hd_rest if hd_rest.exists() else dest / "0_0.png")
     return dest
 
 
@@ -120,7 +127,10 @@ def write_icon(rest_frame: Path) -> Path:
 def extract_sounds(source: Path | None = None, name: str = "Clippy") -> Path:
     folder = source or agent_source_dir(name)
     dest = sound_cache_dir(name)
+    dest.mkdir(parents=True, exist_ok=True)
     js_path = folder / "sounds-mp3.js"
+    if not js_path.exists():
+        return dest
     marker = dest / "manifest.json"
     stamp = {"mtime": js_path.stat().st_mtime, "size": js_path.stat().st_size}
     if marker.exists() and json.loads(marker.read_text()) == stamp:
@@ -146,17 +156,35 @@ def extract_sounds(source: Path | None = None, name: str = "Clippy") -> Path:
 
 
 def ensure_assets(name: str = "Clippy") -> tuple[AgentDef, Path, Path]:
+    if name != "Clippy":
+        from clippy_xfce.mascots import ensure_custom
+
+        return ensure_custom(name)
     agent = load_agent_definition(name=name)
     frames = extract_frames(agent)
     sounds = extract_sounds(name=name)
     return agent, frames, sounds
 
 
-def compose_frame(frame_dir: Path, images: list[list[int]], size: tuple[int, int]) -> Image.Image:
-    canvas = Image.new("RGBA", size, (0, 0, 0, 0))
+def compose_frame(
+    frame_dir: Path,
+    images: list[list[int]],
+    size: tuple[int, int],
+    hd: bool = True,
+) -> Image.Image:
+    hd_dir = Path(frame_dir).with_name(Path(frame_dir).name + "@4x")
+    use_hd = hd and (hd_dir / "0_0.png").exists()
+    source = hd_dir if use_hd else frame_dir
+    factor = UPSCALE if use_hd else 1
+    canvas = Image.new("RGBA", (size[0] * factor, size[1] * factor), (0, 0, 0, 0))
     for cell in images or [[0, 0]]:
-        path = frame_dir / f"{int(cell[0])}_{int(cell[1])}.png"
-        if path.exists():
-            layer = Image.open(path).convert("RGBA")
-            canvas.alpha_composite(layer)
+        path = source / f"{int(cell[0])}_{int(cell[1])}.png"
+        if not path.exists():
+            path = Path(frame_dir) / f"{int(cell[0])}_{int(cell[1])}.png"
+        if not path.exists():
+            continue
+        layer = Image.open(path).convert("RGBA")
+        if layer.size != canvas.size:
+            layer = layer.resize(canvas.size, Image.Resampling.NEAREST)
+        canvas.alpha_composite(layer)
     return canvas

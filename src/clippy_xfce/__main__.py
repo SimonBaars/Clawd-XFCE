@@ -10,10 +10,13 @@ def main(argv: list[str] | None = None) -> int:
     if "--prepare" in args:
         from clippy_xfce.sprites import ensure_assets
 
-        agent, frames, sounds = ensure_assets()
-        print(f"Clippy ready: {len(agent.animations)} animations")
-        print(f"frames: {frames}")
-        print(f"sounds: {sounds}")
+        from clippy_xfce.mascots import MASCOT_IDS
+
+        for name in MASCOT_IDS:
+            agent, frames, sounds = ensure_assets(name)
+            print(f"{agent.name} ready: {len(agent.animations)} animations")
+            print(f"frames: {frames}")
+            print(f"sounds: {sounds}")
         return 0
     import clippy_xfce.gi_setup  # noqa: F401
     from clippy_xfce.app import main as app_main

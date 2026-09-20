@@ -6,6 +6,7 @@ import clippy_xfce.gi_setup  # noqa: F401
 from gi.repository import Gtk
 
 from clippy_xfce.config import CONFIRM_MODES, MODELS, SCREENSHOT_MODES, TOOL_MODES, Settings
+from clippy_xfce.mascots import MASCOTS
 
 
 class SettingsDialog(Gtk.Dialog):
@@ -59,7 +60,7 @@ class SettingsDialog(Gtk.Dialog):
         self.autostart = Gtk.CheckButton(label="Start Clippy when I log in")
         self.autostart.set_active(settings.autostart)
 
-        self.scale = Gtk.SpinButton.new_with_range(1.0, 3.0, 0.25)
+        self.scale = Gtk.SpinButton.new_with_range(1.5, 6.0, 0.25)
         self.scale.set_value(settings.scale)
         self.tokens = Gtk.SpinButton.new_with_range(256, 16000, 256)
         self.tokens.set_value(settings.max_tokens)
@@ -67,6 +68,13 @@ class SettingsDialog(Gtk.Dialog):
         self.iters.set_value(settings.max_iterations)
         self.hotkey = Gtk.Entry()
         self.hotkey.set_text(settings.hotkey)
+        self.mascot = Gtk.ComboBoxText()
+        for key, label in MASCOTS:
+            self.mascot.append(key, label)
+        if settings.mascot in dict(MASCOTS):
+            self.mascot.set_active_id(settings.mascot)
+        else:
+            self.mascot.set_active(0)
 
         rows = [
             ("API key", self.api),
@@ -74,8 +82,9 @@ class SettingsDialog(Gtk.Dialog):
             ("Computer-use API", self.tool_mode),
             ("Confirm actions", self.confirm),
             ("Attach screenshots", self.shots),
+            ("Mascot", self.mascot),
             ("Hotkey", self.hotkey),
-            ("Clippy size", self.scale),
+            ("Mascot size", self.scale),
             ("Max tokens", self.tokens),
             ("Max steps", self.iters),
         ]
@@ -102,6 +111,8 @@ class SettingsDialog(Gtk.Dialog):
             hide_self_in_screenshots=self.hide_self.get_active(),
             sounds=self.sounds.get_active(),
             scale=float(self.scale.get_value()),
+            pos_x=self.settings.pos_x,
+            pos_y=self.settings.pos_y,
             start_hidden=self.settings.start_hidden,
             autostart=self.autostart.get_active(),
             proactive_greeting=self.greet.get_active(),
@@ -109,6 +120,8 @@ class SettingsDialog(Gtk.Dialog):
             keep_screenshots=self.settings.keep_screenshots,
             idle_seconds=self.settings.idle_seconds,
             hotkey=self.hotkey.get_text().strip() or "<Ctrl><Alt>c",
+            mascot=self.mascot.get_active_id() or self.settings.mascot,
+            config_version=self.settings.config_version,
             api_key=self.api.get_text().strip(),
         )
         return data.sanitized()
