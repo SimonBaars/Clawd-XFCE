@@ -29,7 +29,7 @@ class FlashWindow(Gtk.Window):
         self.set_skip_taskbar_hint(True)
         self.set_skip_pager_hint(True)
         self.set_resizable(False)
-        self.set_type_hint(Gdk.WindowTypeHint.NOTIFICATION)
+        self.set_type_hint(Gdk.WindowTypeHint.UTILITY)
         self.set_app_paintable(True)
         self.get_style_context().add_class("clippy-bubble")
         self.stick()
@@ -83,7 +83,11 @@ class FlashWindow(Gtk.Window):
 
     def _place(self) -> bool:
         display = self.get_display()
-        monitor = display.get_primary_monitor() or display.get_monitor(0)
+        monitor = display.get_primary_monitor() if display else None
+        if monitor is None and display is not None:
+            monitor = display.get_monitor(0)
+        if monitor is None:
+            return False
         work = monitor.get_workarea()
         width = max(self.get_allocated_width(), self.get_size()[0])
         self.move(work.x + max(8, (work.width - width) // 2), work.y + 18)
