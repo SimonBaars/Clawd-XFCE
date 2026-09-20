@@ -9,7 +9,9 @@ from gi.repository import Gdk, GLib, Gtk, Pango
 
 from clippy_xfce.ui.help import run_shortcuts
 
-BUBBLE_WIDTH = 400
+# Must match the real header (buttons + title). 400 was a lie: GTK
+# opened at ~538px, so place_near sat the mascot under the extra width.
+BUBBLE_WIDTH = 440
 BUBBLE_HEIGHT = 460
 
 
@@ -69,8 +71,8 @@ class BubbleWindow(Gtk.Window):
         self.title_label.get_style_context().add_class("clippy-title")
         self.status_label = Gtk.Label(label="Ctrl+Alt+C to ask · drag to move · Escape to stop", xalign=0)
         self.status_label.get_style_context().add_class("clippy-sub")
-        _fit_label(self.title_label, ellipsize=True)
-        _fit_label(self.status_label, ellipsize=True)
+        _fit_label(self.title_label, ellipsize=True, width_chars=12)
+        _fit_label(self.status_label, ellipsize=True, width_chars=16)
         titles.set_hexpand(True)
         titles.set_size_request(0, -1)
         titles.pack_start(self.title_label, False, False, 0)
@@ -120,7 +122,6 @@ class BubbleWindow(Gtk.Window):
         self.connect("button-press-event", self._drag)
         self.connect("key-press-event", self._keys)
         self.connect("realize", lambda *_: self._pin_size())
-        self.connect("configure-event", self._configured)
 
     def set_busy(self, busy: bool, status: str | None = None) -> None:
         self._busy = busy
@@ -159,11 +160,6 @@ class BubbleWindow(Gtk.Window):
 
     def _pin_size(self) -> bool:
         self.resize(BUBBLE_WIDTH, BUBBLE_HEIGHT)
-        return False
-
-    def _configured(self, _win, event) -> bool:
-        if int(event.width) != BUBBLE_WIDTH or int(event.height) != BUBBLE_HEIGHT:
-            GLib.idle_add(self._pin_size)
         return False
 
     def add_message(self, kind: str, text: str) -> None:
@@ -333,11 +329,15 @@ def bubble_anchor(
     return cx + cw + gap, "left", None
 
 
-def _fit_label(label: Gtk.Label, ellipsize: bool = False) -> None:
-    """Keep labels from reporting a huge natural width and stretching the window."""
+def _fit_label(label: Gtk.Label, ellipsize: bool = False, width_chars: int = 0) -> None:
+    """Cap natural width. Ellipsize alone does not; GTK still sizes to the full string."""
     label.set_hexpand(True)
     label.set_xalign(0)
-    label.set_size_request(0, -1)
+    if width_chars:
+        label.set_width_chars(width_chars)
+        label.set_max_width_chars(width_chars)
+    else:
+        label.set_size_request(0, -1)
     if ellipsize:
         label.set_ellipsize(Pango.EllipsizeMode.END)
 
