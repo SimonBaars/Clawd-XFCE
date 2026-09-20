@@ -24,6 +24,12 @@ def test_settings_and_history_dialogs():
     assert result.dodge_hold_key == "Shift"
     settings.destroy()
 
+    from clippy_xfce.ui.help import ShortcutsDialog
+
+    help_dialog = ShortcutsDialog(None, "<Ctrl><Alt>c", "Shift", False)
+    assert help_dialog.get_title() == "Keyboard shortcuts"
+    help_dialog.destroy()
+
     store = MemoryStore()
     dialog = HistoryDialog(None, store)
     dialog.refresh()

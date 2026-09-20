@@ -159,6 +159,9 @@ class ClippyApp(Gtk.Application):
         install_hotkey(self.settings.hotkey)
 
         self.bubble.set_mascot_name(self.settings.mascot)
+        self.bubble.set_help_keys(
+            self.settings.hotkey, self.settings.dodge_hold_key, self.settings.dodge_mouse
+        )
         if self.settings.proactive_greeting:
             self.character.play("Greeting", interrupt=True)
             self.bubble.add_message(
@@ -409,6 +412,9 @@ class ClippyApp(Gtk.Application):
             self.gate.mode = self.settings.confirm_mode
         if self.bubble:
             self.bubble.set_mascot_name(self.settings.mascot)
+            self.bubble.set_help_keys(
+                self.settings.hotkey, self.settings.dodge_hold_key, self.settings.dodge_mouse
+            )
         if self.character:
             self.character.sounds.enabled = self.settings.sounds
             self.character.set_scale(self.settings.scale)

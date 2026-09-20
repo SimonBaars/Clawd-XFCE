@@ -7,6 +7,8 @@ from collections.abc import Callable
 import clippy_xfce.gi_setup  # noqa: F401
 from gi.repository import Gdk, GLib, Gtk, Pango
 
+from clippy_xfce.ui.help import run_shortcuts
+
 
 class BubbleWindow(Gtk.Window):
     def __init__(self) -> None:
@@ -34,6 +36,9 @@ class BubbleWindow(Gtk.Window):
         self._hidden_for_shot = False
         self._was_visible = False
         self._tail_side = "right"
+        self._help_hotkey = "<Ctrl><Alt>c"
+        self._help_hold = "Shift"
+        self._help_dodge = False
 
         self._shell = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=0)
         self._chrome = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=6)
@@ -59,9 +64,10 @@ class BubbleWindow(Gtk.Window):
         self.new_btn = _btn("New", self._new)
         self.hist_btn = _btn("History", self._history)
         self.set_btn = _btn("Settings", self._settings)
-        self.hide_btn = _btn("Hide", lambda *_: self.hide())
+        self.help_btn = _btn("?", self._help)
+        self.help_btn.set_tooltip_text("Keyboard shortcuts")
         buttons = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=4)
-        for button in (self.new_btn, self.hist_btn, self.set_btn, self.hide_btn):
+        for button in (self.new_btn, self.hist_btn, self.set_btn, self.help_btn):
             buttons.pack_start(button, False, False, 0)
         header.pack_end(buttons, False, False, 0)
         self._chrome.pack_start(header, False, False, 0)
@@ -116,6 +122,11 @@ class BubbleWindow(Gtk.Window):
 
     def set_mascot_name(self, name: str) -> None:
         self.title_label.set_text(name)
+
+    def set_help_keys(self, hotkey: str, hold_key: str = "Shift", dodge: bool = False) -> None:
+        self._help_hotkey = hotkey
+        self._help_hold = hold_key
+        self._help_dodge = dodge
 
     def focus_input(self) -> None:
         self.show_all()
@@ -227,6 +238,9 @@ class BubbleWindow(Gtk.Window):
         if self.on_settings:
             self.on_settings()
 
+    def _help(self, *_args) -> None:
+        run_shortcuts(self, self._help_hotkey, self._help_hold, self._help_dodge)
+
     def _draw_tail(self, _area, ctx) -> bool:
         import cairo
 
@@ -258,6 +272,9 @@ class BubbleWindow(Gtk.Window):
                 self.on_stop()
             else:
                 self.hide()
+            return True
+        if event.keyval == Gdk.KEY_F1:
+            self._help()
             return True
         return False
 
