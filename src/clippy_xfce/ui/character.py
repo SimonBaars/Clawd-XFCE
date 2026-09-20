@@ -8,13 +8,14 @@ from collections.abc import Callable
 
 import clippy_xfce.gi_setup  # noqa: F401
 from gi.repository import Gdk, GdkPixbuf, GLib, Gtk
+from PIL import Image
 
 from clippy_xfce.animator import Animator
 from clippy_xfce.sounds import SoundPlayer
 from clippy_xfce.sprites import AgentDef, compose_frame
 
 
-def _pixbuf(image) -> GdkPixbuf.Pixbuf:
+def _pixbuf(image: Image.Image) -> GdkPixbuf.Pixbuf:
     buf = io.BytesIO()
     image.save(buf, format="PNG")
     loader = GdkPixbuf.PixbufLoader.new_with_type("png")
@@ -40,9 +41,12 @@ class CharacterWindow(Gtk.Window):
         self.idle_seconds = idle_seconds
         self.animator = Animator(agent, on_sound=self._sound)
         self.pixbuf: GdkPixbuf.Pixbuf | None = None
+        self._cache: dict[tuple, GdkPixbuf.Pixbuf] = {}
         self._timer = 0
         self._idle_timer = 0
         self._press: tuple[float, float] | None = None
+        self._origin: tuple[int, int] = (0, 0)
+        self._dragging = False
         self._hidden_for_shot = False
         self._was_visible = True
         self.on_click: Callable[[], None] | None = None
@@ -61,7 +65,8 @@ class CharacterWindow(Gtk.Window):
         self.set_events(
             Gdk.EventMask.BUTTON_PRESS_MASK
             | Gdk.EventMask.BUTTON_RELEASE_MASK
-            | Gdk.EventMask.BUTTON_MOTION_MASK
+            | Gdk.EventMask.BUTTON1_MOTION_MASK
+            | Gdk.EventMask.POINTER_MOTION_MASK
         )
 
         screen = self.get_screen()
@@ -72,23 +77,49 @@ class CharacterWindow(Gtk.Window):
         self.area = Gtk.DrawingArea()
         self.area.connect("draw", self._draw)
         self.add(self.area)
+        self.connect("realize", self._realized)
         self.connect("button-press-event", self._pressed)
         self.connect("button-release-event", self._released)
         self.connect("motion-notify-event", self._moved)
+        self.connect("configure-event", self._configured)
         self.connect("destroy", lambda *_: self._clear_timers())
 
-        fw, fh = agent.frame_size
-        self.set_default_size(int(fw * scale), int(fh * scale))
+        self._apply_size()
         self._show_frame()
         self._arm_frame()
         self._arm_idle()
+
+    def display_size(self) -> tuple[int, int]:
+        fw, fh = self.agent_def.frame_size
+        target_w = max(80, int(124 * self.scale))
+        target_h = max(60, int(round(fh * target_w / max(fw, 1))))
+        return target_w, target_h
+
+    def reload(self, agent: AgentDef, frame_dir) -> None:
+        self.agent_def = agent
+        self.frame_dir = frame_dir
+        self.animator = Animator(agent, on_sound=self._sound)
+        self._cache.clear()
+        self._apply_size()
+        self._show_frame()
+        self._arm_frame()
+
+    def _apply_size(self) -> None:
+        width, height = self.display_size()
+        self.set_size_request(width, height)
+        self.resize(width, height)
+
+    def set_scale(self, scale: float) -> None:
+        self.scale = scale
+        self._cache.clear()
+        self._apply_size()
+        self._show_frame()
 
     def place_default(self) -> None:
         display = self.get_display()
         monitor = display.get_primary_monitor() or display.get_monitor(0)
         work = monitor.get_workarea()
-        fw, fh = self.agent_def.frame_size
-        width, height = int(fw * self.scale), int(fh * self.scale)
+        width, height = self.display_size()
         self.move(work.x + work.width - width - 28, work.y + work.height - height - 36)
 
     def play(self, name: str, interrupt: bool = False) -> None:
@@ -121,32 +152,21 @@ class CharacterWindow(Gtk.Window):
 
     def _show_frame(self) -> None:
         view = self.animator.current_view()
-        image = compose_frame(self.frame_dir, view.images, self.agent_def.frame_size)
-        pixbuf = _pixbuf(image)
-        fw, fh = self.agent_def.frame_size
-        self.pixbuf = pixbuf.scale_simple(
-            int(fw * self.scale),
-            int(fh * self.scale),
-            GdkPixbuf.InterpType.BILINEAR,
-        )
+        key = (view.animation, view.index, tuple(tuple(cell) for cell in view.images), self.display_size())
+        pixbuf = self._cache.get(key)
+        if pixbuf is None:
+            image = compose_frame(self.frame_dir, view.images, self.agent_def.frame_size, hd=True)
+            target = self.display_size()
+            if image.size != target:
+                image = image.resize(target, Image.Resampling.LANCZOS)
+            pixbuf = _pixbuf(image)
+            self._cache[key] = pixbuf
+            if len(self._cache) > 240:
+                self._cache.pop(next(iter(self._cache)))
+        self.pixbuf = pixbuf
         if view.sound:
             self._sound(view.sound)
         self.area.queue_draw()
-        self._update_shape()
-
-    def _update_shape(self) -> None:
-        window = self.get_window()
-        if window is None or self.pixbuf is None:
-            return
-        import cairo
-
-        width, height = self.pixbuf.get_width(), self.pixbuf.get_height()
-        surface = cairo.ImageSurface(cairo.FORMAT_A8, width, height)
-        ctx = cairo.Context(surface)
-        Gdk.cairo_set_source_pixbuf(ctx, self.pixbuf, 0, 0)
-        ctx.paint()
-        region = Gdk.cairo_region_create_from_surface(surface)
-        window.input_shape_combine_region(region, 0, 0)
 
     def _draw(self, _area, ctx) -> bool:
         import cairo
@@ -191,6 +211,15 @@ class CharacterWindow(Gtk.Window):
             GLib.source_remove(self._idle_timer)
             self._idle_timer = 0
 
+    def _set_cursor(self, name: str) -> None:
+        window = self.get_window()
+        if window is None:
+            return
+        window.set_cursor(Gdk.Cursor.new_from_name(self.get_display(), name))
+
+    def _realized(self, *_args) -> None:
+        self._set_cursor("grab")
+
     def _pressed(self, _win, event) -> bool:
         if event.button == 3:
             menu = Gtk.Menu()
@@ -201,24 +230,37 @@ class CharacterWindow(Gtk.Window):
             return True
         if event.button == 1:
             self._press = (event.x_root, event.y_root)
-        return False
+            self._origin = self.get_position()
+            self._dragging = False
+            self._set_cursor("grabbing")
+        return True
 
     def _moved(self, _win, event) -> bool:
-        if self._press and event.state & Gdk.ModifierType.BUTTON1_MASK:
-            dx = abs(event.x_root - self._press[0])
-            dy = abs(event.y_root - self._press[1])
-            if dx + dy > 6:
-                self.begin_move_drag(1, int(event.x_root), int(event.y_root), event.time)
-                self._press = None
-                if self.on_moved:
-                    GLib.timeout_add(80, lambda: (self.on_moved() or False))
+        if self._press is None:
+            return False
+        dx = event.x_root - self._press[0]
+        dy = event.y_root - self._press[1]
+        if abs(dx) + abs(dy) > 4:
+            self._dragging = True
+            self.move(int(self._origin[0] + dx), int(self._origin[1] + dy))
+            if self.on_moved:
+                self.on_moved()
+        return True
+
+    def _configured(self, _win, _event) -> bool:
+        if self.on_moved and self._dragging:
+            self.on_moved()
         return False
 
     def _released(self, _win, event) -> bool:
-        if event.button == 1 and self._press is not None:
-            if self.on_click:
+        if event.button == 1:
+            dragged = self._dragging
+            self._press = None
+            self._dragging = False
+            if dragged:
+                if self.on_moved:
+                    self.on_moved()
+            elif self.on_click:
                 self.on_click()
-        self._press = None
-        if self.on_moved:
-            self.on_moved()
-        return False
+            self._set_cursor("grab")
+        return True

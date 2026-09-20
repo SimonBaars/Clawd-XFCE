@@ -14,7 +14,7 @@ from clippy_xfce.agent.computer import ComputerUse, X11Computer
 from clippy_xfce.agent.memory import MemoryStore
 from clippy_xfce.agent.tools import ToolHub
 from clippy_xfce.config import load_settings, save_settings
-from clippy_xfce.desktop import install_desktop_files
+from clippy_xfce.desktop import install_desktop_files, install_hotkey
 from clippy_xfce.sounds import SoundPlayer
 from clippy_xfce.sprites import ensure_assets
 from clippy_xfce.ui.bubble import BubbleWindow
@@ -37,6 +37,9 @@ class ClippyApp(Gtk.Application):
         self.agent: ClippyAgent | None = None
         self.gate: ActionGate | None = None
         self._worker: threading.Thread | None = None
+        self._steer: str | None = None
+        self._save_timer = 0
+        self._computer_away = False
         self.ask_on_start = False
         self.pending_say = ""
 
@@ -45,6 +48,7 @@ class ClippyApp(Gtk.Application):
         parser.add_argument("--ask", action="store_true", help="Open the speech bubble")
         parser.add_argument("--new", action="store_true", help="Start a new conversation")
         parser.add_argument("--say", default="", help="Send a message to the running Clippy")
+        parser.add_argument("--stop", action="store_true", help="Stop the current task")
         parser.add_argument("--quit", action="store_true", help="Quit a running Clippy")
         args, _unknown = parser.parse_known_args(command_line.get_arguments()[1:])
         if args.quit:
@@ -54,12 +58,15 @@ class ClippyApp(Gtk.Application):
         self.ask_on_start = args.ask or bool(args.say)
         self.pending_say = args.say
         self.activate()
+        if args.stop:
+            self._stop()
+            return 0
         if args.new and self.agent:
             self._new_chat()
-        if args.ask and self.bubble:
-            self.show_bubble()
+        if args.ask:
+            self.summon()
         if args.say and self.agent and self.bubble:
-            self.show_bubble()
+            self.summon()
             self.bubble.add_message("user", args.say)
             self._ask(args.say)
         return 0
@@ -68,7 +75,7 @@ class ClippyApp(Gtk.Application):
         if self.character:
             self.character.present()
             if self.ask_on_start:
-                self.show_bubble()
+                self.summon()
             return
         from clippy_xfce.gtkutil import set_ui_active
 
@@ -84,7 +91,7 @@ class ClippyApp(Gtk.Application):
 
             os.environ.setdefault("ANTHROPIC_API_KEY", self.settings.api_key)
 
-        agent_def, frames, _sounds = ensure_assets()
+        agent_def, frames, _sounds = ensure_assets(self.settings.mascot)
         sounds = SoundPlayer(enabled=self.settings.sounds)
         sounds.prepare()
         install_desktop_files(self.settings.autostart)
@@ -99,10 +106,12 @@ class ClippyApp(Gtk.Application):
         self.character.set_application(self)
         self.character.on_click = self.toggle_bubble
         self.character.on_menu = self._fill_menu
-        self.character.on_moved = self._place_bubble
-        self.character.place_default()
+        self.character.on_moved = self._after_move
+        if self.settings.pos_x >= 0 and self.settings.pos_y >= 0:
+            self.character.move(self.settings.pos_x, self.settings.pos_y)
+        else:
+            self.character.place_default()
         self.character.show_all()
-        GLib.idle_add(self.character._update_shape)
 
         self.bubble = BubbleWindow()
         self.bubble.set_application(self)
@@ -118,6 +127,7 @@ class ClippyApp(Gtk.Application):
             max_edge=self.settings.max_screenshot_edge,
             before_shot=self._hide_for_shot if self.settings.hide_self_in_screenshots else None,
             after_shot=self._show_after_shot if self.settings.hide_self_in_screenshots else None,
+            on_engage=self._hide_from_computer if self.settings.computer_use else None,
         )
         hub = ToolHub(self.store, express=self._express)
         self.agent = ClippyAgent(
@@ -130,30 +140,63 @@ class ClippyApp(Gtk.Application):
         )
         self.agent.new_conversation()
 
-        TrayIcon(self.show_bubble, self.toggle_visible, self._history, self._settings, self.quit)
-        bind_hotkey(self.settings.hotkey, self.show_bubble)
+        TrayIcon(
+            self.summon,
+            self.toggle_visible,
+            self._stop,
+            self._toggle_pause,
+            self._history,
+            self._settings,
+            self.quit,
+        )
+        bind_hotkey(self.settings.hotkey, self.summon)
+        install_hotkey(self.settings.hotkey)
 
+        self.bubble.set_mascot_name(self.settings.mascot)
         if self.settings.proactive_greeting:
             self.character.play("Greeting", interrupt=True)
             self.bubble.add_message(
                 "assistant",
-                "Hi! I'm Clippy. I can see this XFCE desktop and help you get things done.",
+                f"Hi! I'm {self.settings.mascot}. Click me or press Ctrl+Alt+C to ask, "
+                "drag me anywhere, and hit Escape or Steer if I go off track.",
             )
             self.show_bubble()
         elif self.ask_on_start:
-            self.show_bubble()
+            self.summon()
 
     def _hide_for_shot(self) -> None:
+        if self._computer_away:
+            return
         if self.character:
             self.character.hide_for_capture()
         if self.bubble:
             self.bubble.hide_for_capture()
 
     def _show_after_shot(self) -> None:
+        if self._computer_away:
+            return
         if self.character:
             self.character.restore_after_capture()
         if self.bubble:
             self.bubble.restore_after_capture()
+
+    def _hide_from_computer(self) -> None:
+        self._computer_away = True
+        if self.character:
+            self.character.hide()
+        if self.bubble:
+            self.bubble.hide()
+        while Gtk.events_pending():
+            Gtk.main_iteration_do(False)
+
+    def _restore_from_computer(self) -> None:
+        if not self._computer_away:
+            return
+        self._computer_away = False
+        if self.character:
+            self.character.show_all()
+        if self.bubble:
+            self.show_bubble()
 
     def _express(self, mood: str, animation: str | None) -> str:
         def go() -> str:
@@ -169,7 +212,9 @@ class ClippyApp(Gtk.Application):
 
     def _fill_menu(self, menu: Gtk.Menu) -> None:
         items = [
-            ("Ask Clippy", self.show_bubble),
+            ("Ask Clippy", self.summon),
+            ("Stop", self._stop),
+            ("Pause computer use", self._toggle_pause),
             ("New chat", self._new_chat),
             ("History", self._history),
             ("Settings", self._settings),
@@ -181,11 +226,23 @@ class ClippyApp(Gtk.Application):
             item.connect("activate", lambda _i, cb=handler: cb())
             menu.append(item)
 
+    def summon(self) -> None:
+        if self._computer_away:
+            # User wants to steer or stop; bring only the bubble back.
+            if self.bubble:
+                self.bubble.show_all()
+                self.bubble.focus_input()
+            return
+        if self.character:
+            self.character.show_all()
+        self.show_bubble()
+
     def show_bubble(self) -> None:
         if not self.bubble or not self.character:
             return
         self.bubble.show_all()
-        self._place_bubble()
+        self._place_bubble(nudge_mascot=True)
+        GLib.idle_add(self._place_bubble_after_layout)
         self.bubble.focus_input()
         self.character.play_mood("talk")
 
@@ -208,42 +265,98 @@ class ClippyApp(Gtk.Application):
             self.character.show_all()
             self.show_bubble()
 
-    def _place_bubble(self) -> None:
+    def _place_bubble(self, nudge_mascot: bool = False) -> None:
         if self.bubble and self.character and self.bubble.get_visible():
-            self.bubble.place_near(self.character)
+            self.bubble.place_near(self.character, nudge_mascot=nudge_mascot)
+
+    def _place_bubble_after_layout(self) -> bool:
+        self._place_bubble(nudge_mascot=True)
+        return False
+
+    def _after_move(self) -> None:
+        self._place_bubble()
+        if self._save_timer:
+            GLib.source_remove(self._save_timer)
+        self._save_timer = GLib.timeout_add(350, self._persist_pos)
+
+    def _persist_pos(self) -> bool:
+        self._save_timer = 0
+        if not self.character:
+            return False
+        x, y = self.character.get_position()
+        if x == self.settings.pos_x and y == self.settings.pos_y:
+            return False
+        self.settings.pos_x = x
+        self.settings.pos_y = y
+        save_settings(self.settings)
+        return False
 
     def _ask(self, text: str) -> None:
         if not self.agent or not self.bubble:
             return
         if self._worker and self._worker.is_alive():
-            self.bubble.add_message("system", "I'm still working on the last thing.")
+            self._steer = text
+            self.agent.stop()
+            self.bubble.add_message("system", "Okay, changing direction…")
+            self.bubble.set_status("Steering…")
             return
         if not self.settings.api_key:
             self.bubble.add_message("error", "Add an Anthropic API key in Settings first.")
             self._settings()
             return
         self.gate.reset_turn() if self.gate else None
-        self.bubble.set_busy(True, "Looking at your desktop…")
+        self.bubble.set_busy(True, "Working on the desktop…  tray Stop or Ctrl+Alt+C to steer.")
         if self.character:
             self.character.play_mood("think", interrupt=True)
+        prompt = text
 
         def work() -> None:
             try:
-                self.agent.ask(text)
+                self.agent.ask(prompt)
             except Exception as exc:
                 GLib.idle_add(self.bubble.add_message, "error", str(exc))
             finally:
-                GLib.idle_add(self.bubble.set_busy, False, "Ready to help.")
-                GLib.idle_add(self.character.play_mood, "success")
+                GLib.idle_add(self._finish_ask)
 
         self._worker = threading.Thread(target=work, name="clippy-agent", daemon=True)
         self._worker.start()
 
+    def _finish_ask(self) -> None:
+        nxt = self._steer
+        self._steer = None
+        if nxt:
+            if self.bubble:
+                self.bubble.add_message("user", nxt)
+            self._ask(nxt)
+            return
+        self._restore_from_computer()
+        if self.bubble:
+            self.bubble.set_busy(False, "Ready to help.")
+        if self.character:
+            self.character.play_mood("success")
+
     def _stop(self) -> None:
+        busy = bool(self._worker and self._worker.is_alive())
+        if not busy:
+            return
+        self._steer = None
         if self.agent:
             self.agent.stop()
         if self.bubble:
             self.bubble.set_status("Stopping…")
+            self.bubble.add_message("system", "Stopped. Tell me what to do instead.")
+        if self.character:
+            self.character.play_mood("error", interrupt=True)
+        self._restore_from_computer()
+
+    def _toggle_pause(self) -> None:
+        if not self.agent:
+            return
+        self.agent.computer_paused = not self.agent.computer_paused
+        state = "paused" if self.agent.computer_paused else "resumed"
+        if self.bubble:
+            self.bubble.add_message("system", f"Computer use {state}.")
+            self.bubble.set_status(f"Computer use {state}.")
 
     def _new_chat(self) -> None:
         if self.agent:
@@ -254,6 +367,14 @@ class ClippyApp(Gtk.Application):
             self.bubble.set_status("New chat")
         if self.character:
             self.character.play("Wave", interrupt=True)
+
+    def _reload_mascot(self) -> None:
+        if not self.character:
+            return
+        agent_def, frames, _sounds = ensure_assets(self.settings.mascot)
+        self.character.reload(agent_def, frames)
+        self.character.play("Greeting", interrupt=True)
+        self._place_bubble()
 
     def _history(self) -> None:
         chosen = run_history(self.bubble, self.store)
@@ -267,6 +388,7 @@ class ClippyApp(Gtk.Application):
         updated = run_settings(self.bubble, self.settings)
         if not updated:
             return
+        previous = self.settings.mascot
         self.settings = updated
         save_settings(self.settings)
         install_desktop_files(self.settings.autostart)
@@ -275,12 +397,16 @@ class ClippyApp(Gtk.Application):
             self.agent.tool_mode = self.settings.tool_mode
         if self.gate:
             self.gate.mode = self.settings.confirm_mode
+        if self.bubble:
+            self.bubble.set_mascot_name(self.settings.mascot)
         if self.character:
             self.character.sounds.enabled = self.settings.sounds
-            self.character.scale = self.settings.scale
-            self.character._show_frame()
+            self.character.set_scale(self.settings.scale)
+            if previous != self.settings.mascot:
+                self._reload_mascot()
+        install_hotkey(self.settings.hotkey)
         if self.bubble:
-            self.bubble.add_message("system", "Settings saved.")
+            self.bubble.add_message("system", f"Settings saved. {self.settings.mascot} is on deck.")
 
     def _on_event(self, event: AgentEvent) -> None:
         def ui() -> bool:
