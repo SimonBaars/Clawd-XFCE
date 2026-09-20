@@ -21,7 +21,7 @@ from clippy_xfce.ui.bubble import BubbleWindow
 from clippy_xfce.ui.character import CharacterWindow
 from clippy_xfce.ui.confirm import ActionGate
 from clippy_xfce.ui.history import replay_visible, run_history
-from clippy_xfce.ui.hotkey import bind_hotkey
+from clippy_xfce.ui.hotkey import HeldHotkey, bind_hotkey
 from clippy_xfce.ui.settings import run_settings
 from clippy_xfce.ui.theme import load_css
 from clippy_xfce.ui.tray import TrayIcon
@@ -40,6 +40,7 @@ class ClippyApp(Gtk.Application):
         self._steer: str | None = None
         self._save_timer = 0
         self._computer_away = False
+        self._away_stop = HeldHotkey("Escape", self._stop)
         self.ask_on_start = False
         self.pending_say = ""
 
@@ -70,6 +71,10 @@ class ClippyApp(Gtk.Application):
             self.bubble.add_message("user", args.say)
             self._ask(args.say)
         return 0
+
+    def do_shutdown(self) -> None:  # noqa: N802
+        self._away_stop.release()
+        Gtk.Application.do_shutdown(self)
 
     def do_activate(self) -> None:  # noqa: N802
         if self.character:
@@ -182,6 +187,7 @@ class ClippyApp(Gtk.Application):
 
     def _hide_from_computer(self) -> None:
         self._computer_away = True
+        self._away_stop.acquire()
         if self.character:
             self.character.hide()
         if self.bubble:
@@ -193,6 +199,7 @@ class ClippyApp(Gtk.Application):
         if not self._computer_away:
             return
         self._computer_away = False
+        self._away_stop.release()
         if self.character:
             self.character.show_all()
         if self.bubble:
