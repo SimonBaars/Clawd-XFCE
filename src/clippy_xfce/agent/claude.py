@@ -319,6 +319,10 @@ class ClippyAgent:
                     results.append(_tool_result(tool_use_id, text, toolset))
                     if name == "express":
                         self._emit("express", text)
+                    if name in {"flash", "notify_user"}:
+                        caption = str(payload.get("text") or payload.get("body") or "").strip()
+                        if caption:
+                            self._emit("flash", caption)
             except Exception as exc:
                 failed = is_computer
                 results.append(_tool_result(tool_use_id, str(exc), toolset, error=True))

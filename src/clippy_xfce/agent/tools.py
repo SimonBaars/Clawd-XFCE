@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import re
+import shutil
 import subprocess
 from pathlib import Path
 from typing import Any, Callable
@@ -75,13 +76,34 @@ CUSTOM_TOOLS = [
         },
     },
     {
+        "name": "flash",
+        "description": (
+            "Show a short on-screen caption the user can read while you use the computer. "
+            "Use this to explain the current step when they asked you to teach or walk them through it. "
+            "One or two sentences. Do not flash secrets."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "text": {"type": "string", "description": "Caption the user will see."},
+                "seconds": {
+                    "type": "number",
+                    "description": "How long to leave it up, from 2 to 12. Default 5.",
+                },
+            },
+            "required": ["text"],
+        },
+    },
+    {
         "name": "notify_user",
-        "description": "Show a desktop notification on XFCE.",
+        "description": "Same as flash: show a short live caption on the desktop.",
         "input_schema": {
             "type": "object",
             "properties": {
                 "title": {"type": "string"},
                 "body": {"type": "string"},
+                "text": {"type": "string"},
+                "seconds": {"type": "number"},
             },
             "required": ["body"],
         },
@@ -171,10 +193,12 @@ class ToolHub:
         self,
         memory: MemoryStore,
         express: Callable[[str, str | None], str] | None = None,
+        flash: Callable[[str, float], str] | None = None,
     ) -> None:
         self.memory = memory
         self.editor = TextEditor()
         self.express = express
+        self.flash = flash
 
     def handle(self, name: str, payload: dict[str, Any]) -> str:
         if name in {"bash", "bash_20250124"}:
@@ -197,13 +221,21 @@ class ToolHub:
             if not self.express:
                 return "expression unavailable"
             return self.express(str(payload.get("mood") or "talk"), payload.get("animation"))
-        if name == "notify_user":
+        if name in {"flash", "notify_user"}:
+            caption = str(payload.get("text") or payload.get("body") or "").strip()
+            seconds = payload.get("seconds", 5)
+            try:
+                hold = float(seconds)
+            except (TypeError, ValueError):
+                hold = 5.0
+            if self.flash:
+                return self.flash(caption, hold)
             title = str(payload.get("title") or "Clippy")
-            body = str(payload.get("body") or "")
-            subprocess.Popen(
-                ["notify-send", "-a", "Clippy", title, body],
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
-            )
-            return "notified"
+            if caption and shutil.which("notify-send"):
+                subprocess.Popen(
+                    ["notify-send", "-a", "Clippy", title, caption],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            return "flashed" if caption else "nothing to flash"
         raise ValueError(f"Unknown tool: {name}")

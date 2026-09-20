@@ -15,6 +15,7 @@ def test_tool_declarations():
     assert "computer_toolset_20260801" in types
     assert "bash_20250124" in types
     assert any(tool.get("name") == "remember" for tool in tools)
+    assert any(tool.get("name") == "flash" for tool in tools)
     legacy = computer_tools("legacy", True, False, False)
     assert legacy[0]["type"] == "computer_20251124"
 

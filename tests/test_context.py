@@ -13,3 +13,4 @@ def test_filters_own_mascot_windows():
 def test_prompt_forbids_own_chat():
     assert "chat bubble are hidden" in PERSONALITY
     assert "Never click" in PERSONALITY
+    assert "flash" in PERSONALITY

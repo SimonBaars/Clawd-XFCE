@@ -115,6 +115,10 @@ window.clippy-bubble button.destructive,
   background-color: #f0b4a8;
 }
 
+.clippy-flash {
+  padding: 8px 12px;
+}
+
 window.clippy-bubble entry {
   background-image: none;
   background-color: #fffef8;

@@ -17,7 +17,7 @@ from clippy_xfce.gtkutil import run_on_ui
 def is_assistant_window(name: str, app: str = "") -> bool:
     """Clippy/Clawd must not appear as a computer-use target."""
     blob = f"{name} {app}".lower()
-    return any(token in blob for token in ("clippy", "clawd", "org.xfce.clippy"))
+    return any(token in blob for token in ("clippy", "clawd", "org.xfce.clippy", "keyboard shortcuts"))
 
 
 def clipboard_text(limit: int = 800) -> str:

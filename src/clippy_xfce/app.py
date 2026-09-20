@@ -20,6 +20,7 @@ from clippy_xfce.sprites import ensure_assets
 from clippy_xfce.ui.bubble import BubbleWindow
 from clippy_xfce.ui.character import CharacterWindow
 from clippy_xfce.ui.confirm import ActionGate
+from clippy_xfce.ui.flash import FlashWindow
 from clippy_xfce.ui.history import replay_visible, run_history
 from clippy_xfce.ui.hotkey import HeldHotkey, bind_hotkey
 from clippy_xfce.ui.settings import run_settings
@@ -34,6 +35,7 @@ class ClippyApp(Gtk.Application):
         self.store = MemoryStore()
         self.character: CharacterWindow | None = None
         self.bubble: BubbleWindow | None = None
+        self.flash: FlashWindow | None = None
         self.agent: ClippyAgent | None = None
         self.gate: ActionGate | None = None
         self._worker: threading.Thread | None = None
@@ -74,6 +76,8 @@ class ClippyApp(Gtk.Application):
 
     def do_shutdown(self) -> None:  # noqa: N802
         self._away_stop.release()
+        if self.flash:
+            self.flash.dismiss()
         Gtk.Application.do_shutdown(self)
 
     def do_activate(self) -> None:  # noqa: N802
@@ -135,7 +139,10 @@ class ClippyApp(Gtk.Application):
             after_shot=self._show_after_shot if self.settings.hide_self_in_screenshots else None,
             on_engage=self._hide_from_computer if self.settings.computer_use else None,
         )
-        hub = ToolHub(self.store, express=self._express)
+        self.flash = FlashWindow()
+        self.flash.set_application(self)
+        self.flash.set_mascot_name(self.settings.mascot)
+        hub = ToolHub(self.store, express=self._express, flash=self._flash)
         self.agent = ClippyAgent(
             self.settings,
             self.store,
@@ -204,10 +211,22 @@ class ClippyApp(Gtk.Application):
             return
         self._computer_away = False
         self._away_stop.release()
+        if self.flash:
+            self.flash.dismiss()
         if self.character:
             self.character.show_all()
         if self.bubble:
             self.show_bubble()
+
+    def _flash(self, text: str, seconds: float) -> str:
+        def go() -> str:
+            assert self.flash is not None
+            self.flash.show_message(text, seconds)
+            return "flashed"
+
+        from clippy_xfce.gtkutil import run_on_ui
+
+        return run_on_ui(go)
 
     def _express(self, mood: str, animation: str | None) -> str:
         def go() -> str:
@@ -412,6 +431,8 @@ class ClippyApp(Gtk.Application):
             self.gate.mode = self.settings.confirm_mode
         if self.bubble:
             self.bubble.set_mascot_name(self.settings.mascot)
+            if self.flash:
+                self.flash.set_mascot_name(self.settings.mascot)
             self.bubble.set_help_keys(
                 self.settings.hotkey, self.settings.dodge_hold_key, self.settings.dodge_mouse
             )
@@ -432,6 +453,12 @@ class ClippyApp(Gtk.Application):
             if event.kind == "assistant":
                 self.bubble.add_message("assistant", event.text)
                 self.character.play_mood("talk")
+                if self._computer_away and self.flash:
+                    self.flash.show_message(event.text)
+            elif event.kind == "flash":
+                self.bubble.add_message("assistant", event.text)
+                if self.flash:
+                    self.flash.show_message(event.text)
             elif event.kind == "tool":
                 self.bubble.add_message("tool", event.text)
                 self.bubble.set_status(event.text[:60])

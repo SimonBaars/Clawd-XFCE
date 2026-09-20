@@ -13,6 +13,7 @@ A native XFCE companion that sits on your desktop, talks in a speech bubble, rem
 - Live desktop context: windows, workspace, clipboard, time
 - Screen capture for Claude, with Clippy hidden so it does not photobomb itself
 - Computer use: screenshot, zoom, click, drag, scroll, type, keys
+- Live captions while it works, so it can explain a step as it does it
 - Bash and a precise text-editor tool
 - XFCE integration: `.desktop` launcher, tray icon, optional autostart
 

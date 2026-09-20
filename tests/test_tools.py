@@ -32,3 +32,9 @@ def test_memory_tools(tmp_path):
     recalled = hub.handle("recall", {"query": "panel"})
     assert "XFCE" in recalled
     assert "success:None" in hub.handle("express", {"mood": "success"})
+    flashes: list[tuple[str, float]] = []
+    talking = ToolHub(store, flash=lambda text, seconds: flashes.append((text, seconds)) or "flashed")
+    assert talking.handle("flash", {"text": "Now we run git init.", "seconds": 4}) == "flashed"
+    assert flashes == [("Now we run git init.", 4.0)]
+    talking.handle("notify_user", {"body": "Opening the terminal."})
+    assert flashes[-1][0] == "Opening the terminal."
