@@ -14,6 +14,15 @@ from clippy_xfce.agent.memory import MemoryStore, first_text
 from clippy_xfce.agent.prompts import apply_display_size, computer_tools, system_prompt
 from clippy_xfce.agent.tools import ToolHub, is_dangerous_bash
 from clippy_xfce.config import Settings
+from clippy_xfce.watch import (
+    WatchSpec,
+    looks_like_stop_supervise,
+    looks_like_supervise,
+    on_idle_prompt,
+    run_watch,
+    snapshot_window,
+    spec_from_payload,
+)
 
 COMPUTER_MEMBERS = {
     "screenshot",
@@ -48,6 +57,14 @@ class AgentEvent:
 
 
 ConfirmFn = Callable[[str, bool], bool]
+
+
+@dataclass
+class SuperviseJob:
+    spec: WatchSpec
+    on_idle: str
+    user_text: str = ""
+    active: bool = True
 EmitFn = Callable[[AgentEvent], None]
 
 
@@ -152,6 +169,8 @@ class ClippyAgent:
         self.messages: list[dict[str, Any]] = []
         self._client = None
         self.tool_mode = settings.tool_mode
+        self.job: SuperviseJob | None = None
+        self.last_user = ""
 
     def _client_for(self):
         if self._client is None:
@@ -161,6 +180,7 @@ class ClippyAgent:
         return self._client
 
     def new_conversation(self) -> int:
+        self.clear_supervise()
         convo = self.memory.create_conversation()
         self.conversation_id = convo.id
         self.messages = []
@@ -200,11 +220,43 @@ class ClippyAgent:
 
     def ask(self, text: str) -> str:
         self.cancel.clear()
+        self.last_user = text
+        if looks_like_stop_supervise(text):
+            self.clear_supervise()
+        elif looks_like_supervise(text):
+            self.arm_supervise({}, text)
         if self.conversation_id is None:
             self.new_conversation()
         content = self._user_content(text, attach_shot=True)
         self._append("user", content)
         return self._loop()
+
+    def arm_supervise(self, payload: dict[str, Any] | None = None, user_text: str = "") -> str:
+        payload = payload or {}
+        source = user_text or self.last_user
+        spec = spec_from_payload(payload, source)
+        instruction = str(payload.get("on_idle") or "").strip() or on_idle_prompt(source)
+        self.job = SuperviseJob(spec=spec, on_idle=instruction, user_text=source)
+        self._emit("status", f"Will watch {spec.match} after this turn.")
+        return (
+            f"Supervisor armed on '{spec.match}' (idle {spec.idle_seconds:.0f}s). "
+            "After this turn a local watcher runs. Escape stops it."
+        )
+
+    def clear_supervise(self) -> str:
+        if self.job:
+            self.job.active = False
+        self.job = None
+        return "Supervisor stopped."
+
+    def run_watch_window(self, payload: dict[str, Any] | None = None) -> str:
+        spec = spec_from_payload(payload, self.last_user)
+        self._emit("watch", f"Watching {spec.match}…  Escape stops.")
+        result = run_watch(spec, snapshot_window, cancelled=self.cancel.is_set)
+        return result.text()
+
+    def supervising(self) -> bool:
+        return bool(self.job and self.job.active)
 
     def _append(self, role: str, content: Any) -> None:
         message = {"role": role, "content": content}
@@ -392,6 +444,12 @@ def _tool_result(tool_use_id: str, content: Any, toolset: str | None, error: boo
 
 
 def _describe(name: str, payload: dict[str, Any], is_computer: bool) -> tuple[str, bool]:
+    if name == "watch_window":
+        return f"Watch {payload.get('window') or 'active window'} until idle", False
+    if name == "supervise":
+        return f"Supervise {payload.get('window') or 'active window'}", False
+    if name == "stop_supervise":
+        return "Stop supervising", False
     if name == "bash":
         command = str(payload.get("command") or "")
         return f"Run `{command}`", is_dangerous_bash(command)

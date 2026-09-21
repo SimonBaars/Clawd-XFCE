@@ -5,6 +5,7 @@ from clippy_xfce.agent.prompts import computer_tools, system_prompt
 def test_prompt_contains_personality():
     text = system_prompt("memories here", "desktop here")
     assert "Clippy" in text
+    assert "supervise" in text
     assert "memories here" in text
     assert "desktop here" in text
 
@@ -16,6 +17,8 @@ def test_tool_declarations():
     assert "bash_20250124" in types
     assert any(tool.get("name") == "remember" for tool in tools)
     assert any(tool.get("name") == "flash" for tool in tools)
+    assert any(tool.get("name") == "supervise" for tool in tools)
+    assert any(tool.get("name") == "watch_window" for tool in tools)
     legacy = computer_tools("legacy", True, False, False)
     assert legacy[0]["type"] == "computer_20251124"
 
@@ -49,6 +52,8 @@ def test_tool_result_and_fallback():
     err = _tool_result("abc", "nope", "computer", error=True)
     assert err["is_error"] is True
     assert _should_fallback("model does not support computer_toolset_20260801")
+    watch_summary, watch_danger = _describe("supervise", {"window": "cursor"}, False)
+    assert "cursor" in watch_summary.lower() and not watch_danger
     summary, danger = _describe("bash", {"command": "rm -rf /tmp/x"}, False)
     assert "rm" in summary and danger
     persisted = _persistable([{"type": "image", "source": {}}, {"type": "text", "text": "hi"}])

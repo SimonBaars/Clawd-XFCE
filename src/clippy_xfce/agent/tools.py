@@ -108,6 +108,61 @@ CUSTOM_TOOLS = [
             "required": ["body"],
         },
     },
+    {
+        "name": "watch_window",
+        "description": (
+            "Block locally until a desktop window looks idle. Uses title and a tiny "
+            "frame hash — no screenshots are sent to Claude while waiting. Use this "
+            "instead of screenshot+wait loops when babysitting another agent."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "window": {
+                    "type": "string",
+                    "description": "'active' or a title/app substring such as cursor.",
+                },
+                "idle_seconds": {
+                    "type": "number",
+                    "description": "How long the window must stay still. Default 8.",
+                },
+                "timeout_seconds": {
+                    "type": "number",
+                    "description": "Give up after this many seconds. 0 means no limit.",
+                },
+                "require_busy": {
+                    "type": "boolean",
+                    "description": "Wait for activity first, then idle (default true).",
+                },
+            },
+        },
+    },
+    {
+        "name": "supervise",
+        "description": (
+            "Start a repeating local watcher. After this turn ends, Clippy watches "
+            "the window for free and only wakes you when it goes idle. Call this "
+            "when the user wants monitoring or 'every time it finishes'."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "window": {"type": "string"},
+                "idle_seconds": {"type": "number"},
+                "timeout_seconds": {"type": "number"},
+                "require_busy": {"type": "boolean"},
+                "on_idle": {
+                    "type": "string",
+                    "description": "What to do each time the window goes idle.",
+                },
+            },
+        },
+    },
+    {
+        "name": "stop_supervise",
+        "description": "Stop the repeating local watcher.",
+        "input_schema": {"type": "object", "properties": {}},
+    },
 ]
 
 
@@ -194,11 +249,17 @@ class ToolHub:
         memory: MemoryStore,
         express: Callable[[str, str | None], str] | None = None,
         flash: Callable[[str, float], str] | None = None,
+        watch: Callable[[dict[str, Any]], str] | None = None,
+        supervise: Callable[[dict[str, Any]], str] | None = None,
+        stop_supervise: Callable[[], str] | None = None,
     ) -> None:
         self.memory = memory
         self.editor = TextEditor()
         self.express = express
         self.flash = flash
+        self.watch = watch
+        self.supervise = supervise
+        self.stop_supervise = stop_supervise
 
     def handle(self, name: str, payload: dict[str, Any]) -> str:
         if name in {"bash", "bash_20250124"}:
@@ -238,4 +299,16 @@ class ToolHub:
                     stderr=subprocess.DEVNULL,
                 )
             return "flashed" if caption else "nothing to flash"
+        if name == "watch_window":
+            if not self.watch:
+                return "watch unavailable"
+            return self.watch(payload)
+        if name == "supervise":
+            if not self.supervise:
+                return "supervise unavailable"
+            return self.supervise(payload)
+        if name == "stop_supervise":
+            if not self.stop_supervise:
+                return "supervise unavailable"
+            return self.stop_supervise()
         raise ValueError(f"Unknown tool: {name}")

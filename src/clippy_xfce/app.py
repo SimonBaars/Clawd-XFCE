@@ -43,6 +43,8 @@ class ClippyApp(Gtk.Application):
         self._save_timer = 0
         self._computer_away = False
         self._stopping = False
+        self._watch_worker: threading.Thread | None = None
+        self._watch_gen = 0
         self._away_stop = HeldHotkey("Escape", self._stop)
         self._escape_watch = EscapeWatch(self._stop, armed=self._escape_armed)
         self.ask_on_start = False
@@ -155,6 +157,9 @@ class ClippyApp(Gtk.Application):
             emit=self._on_event,
             confirm=self.gate.decide,
         )
+        hub.watch = self.agent.run_watch_window
+        hub.supervise = lambda payload: self.agent.arm_supervise(payload, self.agent.last_user)
+        hub.stop_supervise = self.agent.clear_supervise
         computer.cancelled = lambda: self.agent.cancel.is_set() if self.agent else False
         self.agent.new_conversation()
 
@@ -201,12 +206,19 @@ class ClippyApp(Gtk.Application):
         if self.bubble:
             self.bubble.restore_after_capture()
 
+    def _is_busy(self) -> bool:
+        if self._worker and self._worker.is_alive():
+            return True
+        if self._watch_worker and self._watch_worker.is_alive():
+            return True
+        return bool(self.agent and self.agent.supervising())
+
     def _escape_armed(self) -> bool:
         if self._stopping:
             return False
         if self.agent and getattr(self.agent.computer, "suppress_escape", False):
             return False
-        return self._computer_away or bool(self._worker and self._worker.is_alive())
+        return self._computer_away or self._is_busy()
 
     def _hide_from_computer(self) -> None:
         if self._stopping or (self.agent and self.agent.cancel.is_set()):
@@ -344,6 +356,11 @@ class ClippyApp(Gtk.Application):
     def _ask(self, text: str) -> None:
         if not self.agent or not self.bubble:
             return
+        if self._watch_worker and self._watch_worker.is_alive() and not (
+            self._worker and self._worker.is_alive()
+        ):
+            self._watch_gen += 1
+            self.agent.cancel.set()
         if self._worker and self._worker.is_alive():
             self._steer = text
             self.agent.stop()
@@ -380,6 +397,16 @@ class ClippyApp(Gtk.Application):
                 self.bubble.add_message("user", nxt)
             self._ask(nxt)
             return
+        if self._stopping:
+            self._stopping = False
+            self._restore_from_computer()
+            if self.bubble:
+                self.bubble.set_busy(False, "Stopped. Tell me what to do instead.")
+            return
+        if self.agent and self.agent.supervising():
+            self._restore_from_computer()
+            self._begin_watch()
+            return
         self._stopping = False
         self._restore_from_computer()
         if self.bubble:
@@ -387,14 +414,68 @@ class ClippyApp(Gtk.Application):
         if self.character:
             self.character.play_mood("success")
 
+    def _begin_watch(self) -> None:
+        if not self.agent or not self.agent.job:
+            return
+        self._watch_gen += 1
+        gen = self._watch_gen
+        spec = self.agent.job.spec
+        if self.bubble:
+            self.bubble.set_busy(True, f"Watching {spec.match}…  Escape stops.")
+            self.bubble.add_message("system", f"Watching {spec.match}. I'll wake when it goes idle.")
+        if self.character:
+            self.character.show_all()
+            self.character.play_mood("think")
+        self._away_stop.acquire()
+        self._escape_watch.start()
+
+        def work() -> None:
+            from clippy_xfce.watch import run_watch, snapshot_window
+
+            result = run_watch(
+                spec,
+                snapshot_window,
+                cancelled=lambda: self._stopping
+                or gen != self._watch_gen
+                or (self.agent is not None and self.agent.cancel.is_set()),
+            )
+            GLib.idle_add(self._after_watch, gen, result)
+
+        self._watch_worker = threading.Thread(target=work, name="clippy-watch", daemon=True)
+        self._watch_worker.start()
+
+    def _after_watch(self, gen: int, result) -> bool:
+        if gen != self._watch_gen or self._stopping:
+            return False
+        self._escape_watch.stop()
+        if result.status == "cancelled":
+            return False
+        if result.status in {"timeout", "gone"}:
+            if self.agent:
+                self.agent.clear_supervise()
+            if self.bubble:
+                self.bubble.set_busy(False, result.text())
+                self.bubble.add_message("system", result.text())
+            return False
+        from clippy_xfce.watch import on_idle_prompt
+
+        if self.flash:
+            self.flash.show_message("Looks idle — next task.", 5)
+        if self.bubble:
+            self.bubble.add_message("system", result.text())
+        user_text = self.agent.job.user_text if self.agent and self.agent.job else ""
+        self._ask(on_idle_prompt(user_text, result))
+        return False
+
     def _stop(self) -> None:
-        busy = bool(self._worker and self._worker.is_alive())
-        if not busy or self._stopping:
+        if self._stopping or not self._is_busy():
             return
         self._stopping = True
+        self._watch_gen += 1
         self._steer = None
         if self.agent:
             self.agent.stop()
+            self.agent.clear_supervise()
         self._restore_from_computer()
         if self.bubble:
             self.bubble.set_busy(False, "Stopped. Tell me what to do instead.")
@@ -412,7 +493,9 @@ class ClippyApp(Gtk.Application):
             self.bubble.set_status(f"Computer use {state}.")
 
     def _new_chat(self) -> None:
+        self._watch_gen += 1
         if self.agent:
+            self.agent.stop()
             self.agent.new_conversation()
         if self.bubble:
             self.bubble.clear_messages()
@@ -494,6 +577,10 @@ class ClippyApp(Gtk.Application):
                 self.bubble.add_message("system", event.text)
             elif event.kind == "status":
                 self.bubble.set_status(event.text)
+            elif event.kind == "watch":
+                self._restore_from_computer()
+                self.bubble.set_busy(True, event.text)
+                self._escape_watch.start()
             elif event.kind == "stopped":
                 self.bubble.add_message("system", event.text)
             return False

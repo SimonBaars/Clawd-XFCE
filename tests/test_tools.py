@@ -38,3 +38,14 @@ def test_memory_tools(tmp_path):
     assert flashes == [("Now we run git init.", 4.0)]
     talking.handle("notify_user", {"body": "Opening the terminal."})
     assert flashes[-1][0] == "Opening the terminal."
+    seen: list[str] = []
+    watching = ToolHub(
+        store,
+        watch=lambda payload: seen.append(f"watch:{payload.get('window')}") or "idle",
+        supervise=lambda payload: seen.append("arm") or "armed",
+        stop_supervise=lambda: seen.append("stop") or "stopped",
+    )
+    assert watching.handle("watch_window", {"window": "cursor"}) == "idle"
+    assert watching.handle("supervise", {"window": "active"}) == "armed"
+    assert watching.handle("stop_supervise", {}) == "stopped"
+    assert seen == ["watch:cursor", "arm", "stop"]

@@ -28,7 +28,7 @@ def pretty_accel(accel: str) -> str:
 def shortcut_lines(hotkey: str, hold_key: str = "Shift", dodge: bool = False) -> list[tuple[str, str]]:
     rows = [
         (pretty_accel(hotkey), "Show the chat, or steer while working"),
-        ("Escape", "Stop computer use, or hide the chat when idle"),
+        ("Escape", "Stop computer use or watching, or hide the chat when idle"),
         ("Enter", "Send a message"),
         ("F1 or ?", "Open this shortcut list"),
         ("Click the mascot", "Show or hide the chat"),
