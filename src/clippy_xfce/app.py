@@ -22,7 +22,7 @@ from clippy_xfce.ui.character import CharacterWindow
 from clippy_xfce.ui.confirm import ActionGate
 from clippy_xfce.ui.flash import FlashWindow
 from clippy_xfce.ui.history import replay_visible, run_history
-from clippy_xfce.ui.hotkey import EscapeWatch, HeldHotkey, bind_hotkey
+from clippy_xfce.ui.hotkey import EscapeWatch, bind_hotkey
 from clippy_xfce.ui.settings import run_settings
 from clippy_xfce.ui.theme import load_css
 from clippy_xfce.ui.tray import TrayIcon
@@ -45,7 +45,7 @@ class ClippyApp(Gtk.Application):
         self._stopping = False
         self._watch_worker: threading.Thread | None = None
         self._watch_gen = 0
-        self._away_stop = HeldHotkey("Escape", self._stop)
+        self._listen_escape = False
         self._escape_watch = EscapeWatch(self._stop, armed=self._escape_armed)
         self.ask_on_start = False
         self.pending_say = ""
@@ -79,8 +79,7 @@ class ClippyApp(Gtk.Application):
         return 0
 
     def do_shutdown(self) -> None:  # noqa: N802
-        self._escape_watch.stop()
-        self._away_stop.release()
+        self._disarm_stop_key()
         if self.flash:
             self.flash.dismiss()
         Gtk.Application.do_shutdown(self)
@@ -219,14 +218,21 @@ class ClippyApp(Gtk.Application):
             return False
         if self.agent and getattr(self.agent.computer, "suppress_escape", False):
             return False
-        return self._computer_away or self._is_busy()
+        return self._listen_escape
+
+    def _arm_stop_key(self) -> None:
+        self._listen_escape = True
+        self._escape_watch.start()
+
+    def _disarm_stop_key(self) -> None:
+        self._listen_escape = False
+        self._escape_watch.stop()
 
     def _hide_from_computer(self) -> None:
         if self._stopping or (self.agent and self.agent.cancel.is_set()):
             return
         self._computer_away = True
-        self._away_stop.acquire()
-        self._escape_watch.start()
+        self._arm_stop_key()
         if self.character:
             self.character.hide()
         if self.bubble:
@@ -235,8 +241,7 @@ class ClippyApp(Gtk.Application):
             Gtk.main_iteration_do(False)
 
     def _restore_from_computer(self) -> None:
-        self._escape_watch.stop()
-        self._away_stop.release()
+        self._disarm_stop_key()
         if self.flash:
             self.flash.dismiss()
         hidden = self._computer_away
@@ -374,6 +379,7 @@ class ClippyApp(Gtk.Application):
             return
         self._stopping = False
         self.gate.reset_turn() if self.gate else None
+        self._arm_stop_key()
         self.bubble.set_busy(True, "Working…  Escape stops.")
         if self.character:
             self.character.play_mood("think", interrupt=True)
@@ -427,8 +433,7 @@ class ClippyApp(Gtk.Application):
         if self.character:
             self.character.show_all()
             self.character.play_mood("think")
-        self._away_stop.acquire()
-        self._escape_watch.start()
+        self._arm_stop_key()
 
         def work() -> None:
             from clippy_xfce.watch import run_watch, snapshot_window
@@ -469,7 +474,7 @@ class ClippyApp(Gtk.Application):
         return False
 
     def _stop(self) -> None:
-        if self._stopping or not self._is_busy():
+        if self._stopping or not (self._is_busy() or self._listen_escape):
             return
         self._stopping = True
         self._watch_gen += 1
@@ -582,7 +587,7 @@ class ClippyApp(Gtk.Application):
             elif event.kind == "watch":
                 self._restore_from_computer()
                 self.bubble.set_busy(True, event.text)
-                self._escape_watch.start()
+                self._arm_stop_key()
             elif event.kind == "stopped":
                 self.bubble.add_message("system", event.text)
             return False

@@ -37,18 +37,38 @@ class HeldHotkey:
         self.accel = accel
         self.callback = callback
         self.bound = False
+        self._inside = False
 
     def acquire(self) -> bool:
         if self.bound:
             return True
-        self.bound = bind_hotkey(self.accel, self.callback)
+        self.bound = bind_hotkey(self.accel, self._invoke)
         return self.bound
+
+    def _invoke(self) -> None:
+        self._inside = True
+        try:
+            self.callback()
+        finally:
+            self._inside = False
 
     def release(self) -> None:
         if not self.bound:
             return
+        # libkeybinder segfaults if unbound from inside its own callback.
+        if self._inside:
+            self.bound = False
+            import clippy_xfce.gi_setup  # noqa: F401
+            from gi.repository import GLib
+
+            GLib.idle_add(self._unbind)
+            return
+        self._unbind()
+
+    def _unbind(self) -> bool:
         unbind_hotkey(self.accel)
         self.bound = False
+        return False
 
 
 class EscapeWatch:
@@ -65,12 +85,16 @@ class EscapeWatch:
     def start(self) -> None:
         if self._timer:
             return
-        self._down = False
         self._open()
+        # Ignore a key that is already held, so arming the watch does not
+        # look like a fresh press.
+        self._down = self.query_down()
         import clippy_xfce.gi_setup  # noqa: F401
         from gi.repository import GLib
 
-        self._timer = GLib.timeout_add(40, self._poll)
+        # A human tap is short. Poll faster than the tap so it is not missed.
+        # This does not grab the key, so the app Clawd is driving still receives it.
+        self._timer = GLib.timeout_add(10, self._poll)
 
     def stop(self) -> None:
         if self._timer:

@@ -44,7 +44,7 @@ The first run opens settings if no key is found. Clippy also looks for `ANTHROPI
 
 - Click Clippy or press `Ctrl+Alt+C` to talk (also works from the tray)
 - Drag Clippy anywhere — the bubble follows
-- While it is working: the mascot hides so it cannot click itself. **Escape** still stops (it is grabbed globally while hidden). Tray **Stop** and `clippy --stop` also halt. `Ctrl+Alt+C` brings the bubble back to steer.
+- While it is working: the mascot hides so it cannot click itself. **Escape** stops the turn and brings Clawd back, including while the windows are hidden. Tray **Stop** and `clippy --stop` also halt. `Ctrl+Alt+C` brings the bubble back to steer.
 - Escape hides the bubble when Clippy is idle
 - Right-click for Stop, Pause computer use, New chat, History, Settings, Hide, Quit
 - **?** in the chat (or F1) lists keyboard shortcuts. Click the mascot to hide the chat.
