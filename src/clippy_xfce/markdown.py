@@ -55,7 +55,7 @@ def to_pango(text: str) -> str:
     text = _UL.sub("• ", text)
     text = _STASH.sub(
         lambda match: (
-            f'<span bgcolor="#efe6dc" fgcolor="#3a2a24"><tt>'
+            f'<span bgcolor="#3a332f" fgcolor="#eee3da"><tt>'
             f"{stashed[int(match.group(1))]}</tt></span>"
         ),
         text,

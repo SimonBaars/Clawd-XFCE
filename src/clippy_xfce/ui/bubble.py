@@ -351,7 +351,7 @@ class BubbleWindow(Gtk.Window):
         ctx.set_source_rgba(0, 0, 0, 0)
         ctx.paint()
         ctx.set_operator(cairo.OPERATOR_OVER)
-        for offset, alpha in ((8.0, 0.06), (5.5, 0.08), (3.0, 0.10), (1.4, 0.12)):
+        for offset, alpha in ((8.0, 0.22), (5.5, 0.26), (3.0, 0.32), (1.4, 0.38)):
             ctx.save()
             ctx.translate(0.6, offset)
             self._bubble_path(ctx, x, y, w, h, 22)
@@ -365,13 +365,12 @@ class BubbleWindow(Gtk.Window):
         ctx.set_line_width(1.35)
         ctx.set_line_join(cairo.LINE_JOIN_ROUND)
         ctx.stroke()
-        # Paper highlight along the top edge.
         ctx.save()
         self._bubble_path(ctx, x, y, w, h, 22)
         ctx.clip()
         grad = cairo.LinearGradient(x, y, x, y + 18)
-        grad.add_color_stop_rgba(0, 1, 0.98, 0.96, 0.55)
-        grad.add_color_stop_rgba(1, 1, 0.98, 0.96, 0)
+        grad.add_color_stop_rgba(0, 1, 0.78, 0.68, 0.10)
+        grad.add_color_stop_rgba(1, 1, 0.78, 0.68, 0)
         ctx.set_source(grad)
         ctx.rectangle(x, y, w, 18)
         ctx.fill()

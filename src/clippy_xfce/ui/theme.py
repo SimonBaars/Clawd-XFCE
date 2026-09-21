@@ -1,13 +1,13 @@
-"""GTK CSS for the speech bubble — warm cream paper and Clawd terracotta."""
+"""GTK CSS for the speech bubble — warm dark chrome and Clawd terracotta."""
 
 from __future__ import annotations
 
 # RGB 0–1 for Cairo (bubble body, tail, accent)
-CHROME_RGB = (0.957, 0.906, 0.859)  # #f4e7db
-BORDER_RGB = (0.753, 0.510, 0.420)  # #c0826b
-INK_RGB = (0.227, 0.165, 0.141)  # #3a2a24
+CHROME_RGB = (0.145, 0.122, 0.110)  # #25201c
+BORDER_RGB = (0.690, 0.400, 0.318)  # #b06651
+INK_RGB = (0.933, 0.890, 0.855)  # #eee3da
 ACCENT_RGB = (0.827, 0.451, 0.333)  # #d37355
-SHADOW_RGB = (0.145, 0.090, 0.070)
+SHADOW_RGB = (0.02, 0.01, 0.01)
 
 CSS = """
 window.clippy-bubble {
@@ -22,8 +22,8 @@ window.clippy-bubble {
 }
 
 .clippy-card {
-  background-color: #f4e7db;
-  border: 1px solid #c0826b;
+  background-color: #25201c;
+  border: 1px solid #b06651;
   border-radius: 18px;
   padding: 12px 14px;
 }
@@ -35,31 +35,31 @@ window.clippy-bubble {
 .clippy-chrome textview,
 dialog.clippy-bubble,
 dialog.clippy-bubble label {
-  color: #3a2a24;
+  color: #eee3da;
   font-family: Cantarell, "Source Sans 3", "Adwaita Sans", "DejaVu Sans", sans-serif;
 }
 
 .clippy-header {
   padding: 0 2px 10px 2px;
-  border-bottom: 1px solid #e2c8b8;
+  border-bottom: 1px solid #3d332e;
   margin-bottom: 2px;
 }
 
 .clippy-title {
   font-weight: 700;
   font-size: 17px;
-  color: #b45338;
+  color: #e08a6e;
   letter-spacing: 0.2px;
 }
 
 .clippy-sub {
   font-size: 11px;
-  color: #8d7166;
+  color: #b39a8e;
 }
 
 .clippy-messages {
-  background-color: #f7ece4;
-  border: 1px solid #e6cfc2;
+  background-color: #1b1715;
+  border: 1px solid #3d332e;
   border-radius: 16px;
   padding: 8px 6px;
 }
@@ -97,19 +97,19 @@ list.clippy-messages row:focus {
 }
 
 .clippy-msg label {
-  color: #3a2a24;
+  color: #eee3da;
   font-size: 13px;
 }
 
 .clippy-msg.user {
-  background-color: #fff8f2;
-  border: 1px solid #e5d0c3;
+  background-color: #3a332f;
+  border: 1px solid #544840;
   border-bottom-right-radius: 5px;
 }
 
 .clippy-msg.assistant {
-  background-color: #efc4b4;
-  border: 1px solid #e0a892;
+  background-color: #6b3d32;
+  border: 1px solid #8a5344;
   border-bottom-left-radius: 5px;
 }
 
@@ -121,13 +121,13 @@ list.clippy-messages row:focus {
 }
 
 .clippy-msg.system label {
-  color: #8d7166;
+  color: #b39a8e;
   font-size: 11px;
 }
 
 .clippy-msg.error {
-  background-color: #f3d0c8;
-  border: 1px solid #e0a898;
+  background-color: #5a2e28;
+  border: 1px solid #8a5344;
 }
 
 .clippy-msg.tool {
@@ -137,7 +137,7 @@ list.clippy-messages row:focus {
 }
 
 .clippy-msg.tool label {
-  color: #9a7d70;
+  color: #9a8478;
   font-size: 11px;
 }
 
@@ -149,11 +149,11 @@ list.clippy-messages row:focus {
 window.clippy-bubble entry,
 dialog.clippy-bubble entry {
   background-image: none;
-  background-color: #fff7f1;
-  border: 1px solid #e4d0c4;
+  background-color: #1b1715;
+  border: 1px solid #4a3f3a;
   border-radius: 16px;
   padding: 8px 12px;
-  color: #3a2a24;
+  color: #eee3da;
   caret-color: #d37355;
   box-shadow: none;
   min-height: 30px;
@@ -163,25 +163,25 @@ window.clippy-bubble entry:focus,
 .clippy-input:focus,
 dialog.clippy-bubble entry:focus {
   border-color: #d37355;
-  background-color: #ffffff;
+  background-color: #211c19;
 }
 
 window.clippy-bubble entry selection,
 .clippy-input selection,
 .clippy-chrome label selection {
-  background-color: #f4d4c8;
-  color: #3a2a24;
+  background-color: #6b3d32;
+  color: #eee3da;
 }
 
 window.clippy-bubble button,
 .clippy-button,
 dialog.clippy-bubble button {
   background-image: none;
-  background-color: #f0e0d4;
-  border: 1px solid #e4d0c4;
+  background-color: #3a332f;
+  border: 1px solid #544840;
   border-radius: 12px;
   padding: 4px 10px;
-  color: #3a2a24;
+  color: #eee3da;
   min-height: 26px;
   box-shadow: none;
   text-shadow: none;
@@ -194,13 +194,13 @@ window.clippy-bubble button:focus,
 dialog.clippy-bubble button:focus {
   outline: none;
   box-shadow: none;
-  border-color: #d2ac9c;
+  border-color: #b06651;
 }
 
 window.clippy-bubble button label,
 .clippy-button label,
 dialog.clippy-bubble button label {
-  color: #3a2a24;
+  color: #eee3da;
   font-weight: 600;
 }
 
@@ -208,15 +208,15 @@ window.clippy-bubble button:hover,
 .clippy-button:hover,
 dialog.clippy-bubble button:hover {
   background-image: none;
-  background-color: #e8d0c2;
-  border-color: #d2ac9c;
+  background-color: #4a403b;
+  border-color: #b06651;
 }
 
 window.clippy-bubble button:active,
 .clippy-button:active,
 dialog.clippy-bubble button:active {
   background-image: none;
-  background-color: #dfc0ae;
+  background-color: #5a3d34;
 }
 
 window.clippy-bubble button.clippy-text-btn {
@@ -226,17 +226,17 @@ window.clippy-bubble button.clippy-text-btn {
   border-radius: 8px;
   min-height: 22px;
   padding: 2px 7px;
-  color: #b45338;
+  color: #e08a6e;
 }
 
 window.clippy-bubble button.clippy-text-btn label {
-  color: #b45338;
+  color: #e08a6e;
   font-weight: 600;
   font-size: 12px;
 }
 
 window.clippy-bubble button.clippy-text-btn:hover {
-  background-color: #efd4c6;
+  background-color: #3a2a26;
   border: none;
 }
 
@@ -245,15 +245,15 @@ window.clippy-bubble button.clippy-icon-btn {
   min-height: 28px;
   padding: 3px;
   border-radius: 14px;
-  background-color: #efd8cc;
-  border: 1px solid #e2c0b0;
-  color: #8d7166;
+  background-color: #3a332f;
+  border: 1px solid #544840;
+  color: #b39a8e;
 }
 
 window.clippy-bubble button.clippy-icon-btn:hover {
-  background-color: #e8c8b8;
-  border-color: #c0826b;
-  color: #3a2a24;
+  background-color: #4a403b;
+  border-color: #b06651;
+  color: #eee3da;
 }
 
 window.clippy-bubble button.clippy-ask,
@@ -287,19 +287,19 @@ window.clippy-bubble button.clippy-ask:active,
 window.clippy-bubble button.destructive,
 .clippy-button.destructive {
   background-image: none;
-  background-color: #f0d2c6;
-  border-color: #d9a08c;
-  color: #b45338;
+  background-color: #3a2a26;
+  border-color: #d37355;
+  color: #e08a6e;
 }
 
 window.clippy-bubble button.destructive label,
 .clippy-button.destructive label {
-  color: #b85a40;
+  color: #e08a6e;
 }
 
 window.clippy-bubble button.destructive:hover,
 .clippy-button.destructive:hover {
-  background-color: #f4d4c8;
+  background-color: #5a3d34;
 }
 
 window.clippy-bubble button:disabled,
@@ -308,8 +308,8 @@ window.clippy-bubble button:disabled,
 }
 
 .clippy-key {
-  background-color: #f8ebe3;
-  border: 1px solid #e0b8a6;
+  background-color: #3a332f;
+  border: 1px solid #8a5344;
   border-radius: 8px;
   padding: 3px 8px;
 }
@@ -317,7 +317,7 @@ window.clippy-bubble button:disabled,
 .clippy-key label {
   font-weight: 700;
   font-size: 12px;
-  color: #b45338;
+  color: #e08a6e;
 }
 
 .clippy-flash {
@@ -332,23 +332,23 @@ scrollbar slider {
 }
 
 scrollbar slider {
-  background-color: #e4d0c4;
+  background-color: #544840;
   border-radius: 8px;
   min-width: 7px;
 }
 
 scrollbar slider:hover {
-  background-color: #d2ac9c;
+  background-color: #b06651;
 }
 
 dialog.clippy-bubble {
-  background-color: #f4e7db;
+  background-color: #25201c;
 }
 
 dialog.clippy-bubble button {
   background-image: none;
-  background-color: #f0e0d4;
-  border: 1px solid #e4d0c4;
+  background-color: #3a332f;
+  border: 1px solid #544840;
   border-radius: 11px;
 }
 """
@@ -360,7 +360,7 @@ def load_css() -> None:
 
     settings = Gtk.Settings.get_default()
     if settings is not None:
-        settings.set_property("gtk-application-prefer-dark-theme", False)
+        settings.set_property("gtk-application-prefer-dark-theme", True)
     provider = Gtk.CssProvider()
     provider.load_from_data(CSS.encode("utf-8"))
     Gtk.StyleContext.add_provider_for_screen(
