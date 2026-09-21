@@ -42,6 +42,7 @@ class FlashWindow(Gtk.Window):
 
         chrome = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=4)
         chrome.get_style_context().add_class("clippy-chrome")
+        chrome.get_style_context().add_class("clippy-card")
         chrome.get_style_context().add_class("clippy-flash")
         self.who = Gtk.Label(label="Clippy", xalign=0)
         self.who.get_style_context().add_class("clippy-title")

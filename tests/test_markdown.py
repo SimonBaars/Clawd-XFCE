@@ -23,4 +23,4 @@ def test_link_and_code_fence():
 
 def test_code_and_snake_case_are_left_alone():
     assert "<i>" not in to_pango("use file_name later")
-    assert to_pango("use `**still**`") == "use <tt>**still**</tt>"
+    assert "<tt>**still**</tt>" in to_pango("use `**still**`")

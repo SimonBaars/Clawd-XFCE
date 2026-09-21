@@ -53,5 +53,11 @@ def to_pango(text: str) -> str:
     text = _STRIKE.sub(r"<s>\1</s>", text)
     text = _HEADING.sub(r"<b>\1</b>", text)
     text = _UL.sub("• ", text)
-    text = _STASH.sub(lambda match: f"<tt>{stashed[int(match.group(1))]}</tt>", text)
+    text = _STASH.sub(
+        lambda match: (
+            f'<span bgcolor="#efe6dc" fgcolor="#3a2a24"><tt>'
+            f"{stashed[int(match.group(1))]}</tt></span>"
+        ),
+        text,
+    )
     return text

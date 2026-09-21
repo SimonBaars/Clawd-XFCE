@@ -15,6 +15,7 @@ class SettingsDialog(Gtk.Dialog):
         super().__init__(title="Clippy settings", transient_for=parent, flags=0)
         self.add_buttons(Gtk.STOCK_CANCEL, Gtk.ResponseType.CANCEL, Gtk.STOCK_SAVE, Gtk.ResponseType.OK)
         self.set_default_size(460, 420)
+        self.get_style_context().add_class("clippy-bubble")
         self.settings = settings
         box = self.get_content_area()
         box.set_border_width(10)

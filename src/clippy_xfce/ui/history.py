@@ -24,6 +24,7 @@ class HistoryDialog(Gtk.Dialog):
             Gtk.ResponseType.CLOSE,
         )
         self.set_default_size(520, 380)
+        self.get_style_context().add_class("clippy-bubble")
         self.listbox = Gtk.ListBox()
         scrolled = Gtk.ScrolledWindow()
         scrolled.add(self.listbox)
