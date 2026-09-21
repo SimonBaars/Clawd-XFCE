@@ -20,6 +20,34 @@ def is_assistant_window(name: str, app: str = "") -> bool:
     return any(token in blob for token in ("clippy", "clawd", "org.xfce.clippy", "keyboard shortcuts"))
 
 
+TERMINAL_MARKERS = (
+    "xfce4-terminal",
+    "gnome-terminal",
+    "org.gnome.terminal",
+    "kitty",
+    "alacritty",
+    "wezterm",
+    "tilix",
+    "terminator",
+    "konsole",
+    "xterm",
+    "urxvt",
+    "rxvt",
+    "foot",
+    "ghostty",
+    "hyper",
+    "qterminal",
+)
+
+
+def is_terminal_window(name: str, app: str = "") -> bool:
+    blob = f"{name} {app}".lower()
+    if any(marker in blob for marker in TERMINAL_MARKERS):
+        return True
+    # xfce4-terminal titles look like "Terminal - user@host:~/path"
+    return blob.startswith("terminal -") or blob.startswith("terminal:")
+
+
 def clipboard_text(limit: int = 800) -> str:
     if not shutil.which("xclip"):
         return ""

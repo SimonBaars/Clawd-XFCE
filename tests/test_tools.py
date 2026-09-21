@@ -5,6 +5,8 @@ from clippy_xfce.agent.tools import ToolHub, TextEditor, is_dangerous_bash, run_
 def test_danger_detection():
     assert is_dangerous_bash("rm -rf /tmp/foo")
     assert is_dangerous_bash("sudo pacman -S x")
+    assert is_dangerous_bash("xkill")
+    assert is_dangerous_bash("kill 1234")
     assert not is_dangerous_bash("ls -la")
     assert not is_dangerous_bash("python -m pytest")
 

@@ -54,7 +54,7 @@ class Settings:
     max_tokens: int = 4096
     max_iterations: int = 0
     computer_use: bool = True
-    bash_tool: bool = True
+    bash_tool: bool = False
     editor_tool: bool = True
     tool_mode: str = "toolset"
     confirm_mode: str = "destructive"

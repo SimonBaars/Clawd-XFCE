@@ -49,7 +49,7 @@ class SettingsDialog(Gtk.Dialog):
 
         self.computer = Gtk.CheckButton(label="Allow Claude to use the computer")
         self.computer.set_active(settings.computer_use)
-        self.bash = Gtk.CheckButton(label="Allow bash")
+        self.bash = Gtk.CheckButton(label="Allow terminal and bash (run commands, type in terminals)")
         self.bash.set_active(settings.bash_tool)
         self.editor = Gtk.CheckButton(label="Allow text editor")
         self.editor.set_active(settings.editor_tool)

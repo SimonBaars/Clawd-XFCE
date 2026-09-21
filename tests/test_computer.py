@@ -3,8 +3,21 @@ import time
 
 from PIL import Image
 
-from clippy_xfce.agent.computer import ComputerUse, FakeComputer, parse_keys
+from clippy_xfce.agent.computer import ComputerUse, FakeComputer, combo_blocked, parse_keys
 from clippy_xfce.agent.scale import ScreenScaler
+
+
+def test_xkill_shortcut_is_blocked():
+    assert combo_blocked(parse_keys("ctrl+alt+Escape"))
+    assert combo_blocked(parse_keys("ctrl+alt+BackSpace"))
+    assert combo_blocked(["Control_L", "Alt_L", "Escape"])
+    assert combo_blocked(parse_keys("ctrl+s")) is None
+    computer = ComputerUse(FakeComputer())
+    try:
+        computer.press("ctrl+alt+Escape")
+        raise AssertionError("xkill combo should be refused")
+    except PermissionError as exc:
+        assert "xkill" in str(exc).lower() or "Kill Window" in str(exc)
 
 
 def test_parse_keys():
@@ -40,6 +53,14 @@ def test_fake_actions():
     kinds = [event[0] for event in backend.events]
     assert kinds.count("button") >= 2
     computer.handle("type", {"text": "hello"})
+    backend.terminal_focused = True
+    try:
+        computer.handle("type", {"text": "ls"})
+        raise AssertionError("typing into a terminal should be refused")
+    except PermissionError as exc:
+        assert "Terminal access" in str(exc)
+    computer.terminal_access = True
+    computer.handle("type", {"text": "ls"})
     assert ("type", "hello") in backend.events
     computer.handle("key", {"text": "ctrl+s", "repeat": 1})
     computer.handle("scroll", {"scroll_direction": "down", "scroll_amount": 2, "coordinate": [50, 50]})

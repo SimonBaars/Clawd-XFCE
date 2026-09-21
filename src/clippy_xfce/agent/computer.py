@@ -68,6 +68,7 @@ class FakeComputer:
     cursor: tuple[int, int] = (0, 0)
     events: list[tuple] | None = None
     image: Image.Image | None = None
+    terminal_focused: bool = False
 
     def __post_init__(self) -> None:
         self.events = [] if self.events is None else self.events
@@ -314,6 +315,37 @@ def tap_key(backend: ComputerBackend, key: str) -> None:
     backend.key(key, False)
 
 
+def _key_token(key: str) -> str:
+    lower = (key or "").lower()
+    if lower.startswith("control") or lower == "ctrl":
+        return "ctrl"
+    if lower.startswith("alt") or lower in {"mod1", "meta_l", "meta_r"}:
+        return "alt"
+    if lower.startswith("shift"):
+        return "shift"
+    if lower.startswith("super") or lower in {"meta", "win"}:
+        return "super"
+    if lower in {"esc", "escape"}:
+        return "escape"
+    if lower in {"backspace", "back_space"}:
+        return "backspace"
+    if lower in {"delete", "del"}:
+        return "delete"
+    return lower
+
+
+def combo_blocked(keys: list[str]) -> str | None:
+    """WM/session-killing chords must never be synthesized."""
+    tokens = {_key_token(key) for key in keys}
+    if {"ctrl", "alt", "escape"} <= tokens:
+        return "Ctrl+Alt+Escape is XFCE Kill Window (xkill). Blocked."
+    if {"ctrl", "alt", "backspace"} <= tokens:
+        return "Ctrl+Alt+Backspace would kill the X session. Blocked."
+    if {"ctrl", "alt", "delete"} <= tokens:
+        return "Ctrl+Alt+Delete is blocked."
+    return None
+
+
 def tap_combo(backend: ComputerBackend, keys: list[str]) -> None:
     for key in keys:
         backend.key(key, True)
@@ -336,6 +368,7 @@ class ComputerUse:
         after_shot: Callable[[], None] | None = None,
         on_engage: Callable[[], None] | None = None,
         cancelled: Callable[[], bool] | None = None,
+        terminal_access: bool = False,
         max_edge: int = 2576,
     ) -> None:
         self.backend = backend or X11Computer()
@@ -345,6 +378,7 @@ class ComputerUse:
         self.after_shot = after_shot
         self.on_engage = on_engage
         self.cancelled = cancelled
+        self.terminal_access = terminal_access
         self.suppress_escape = False
 
     def refresh_scaler(self) -> None:
@@ -430,6 +464,9 @@ class ComputerUse:
         keys = parse_keys(spec)
         if not keys:
             raise ValueError("No key specified")
+        blocked = combo_blocked(keys)
+        if blocked:
+            raise PermissionError(blocked)
         self.suppress_escape = any(key == "Escape" for key in keys)
         try:
             for _ in range(clamp(int(repeat or 1), 1, 100)):
@@ -441,6 +478,9 @@ class ComputerUse:
 
     def hold(self, spec: str, duration: float) -> str:
         keys = parse_keys(spec)
+        blocked = combo_blocked(keys)
+        if blocked:
+            raise PermissionError(blocked)
         self.suppress_escape = any(key == "Escape" for key in keys)
         try:
             hold_keys(self.backend, keys, True)
@@ -453,6 +493,18 @@ class ComputerUse:
     def _cancelled(self) -> bool:
         return bool(self.cancelled and self.cancelled())
 
+    def _focused_is_terminal(self) -> bool:
+        if isinstance(self.backend, FakeComputer):
+            return bool(getattr(self.backend, "terminal_focused", False))
+        from clippy_xfce.agent.context import is_terminal_window
+        from clippy_xfce.watch import snapshot_window
+
+        try:
+            frame = snapshot_window("active")
+        except Exception:
+            return False
+        return bool(frame and is_terminal_window(frame.title, frame.app))
+
     def _sleep(self, seconds: float) -> None:
         deadline = time.monotonic() + min(300.0, max(0.0, float(seconds)))
         while time.monotonic() < deadline:
@@ -464,6 +516,14 @@ class ComputerUse:
         """Return (text or png-bytes, is_image)."""
         if self._cancelled():
             return "cancelled", False
+        action = payload.get("action") or name
+        if action in {"type", "key", "hold_key"}:
+            keys = parse_keys(str(payload.get("text") or "")) if action != "type" else []
+            blocked = combo_blocked(keys) if keys else None
+            if blocked:
+                raise PermissionError(blocked)
+            if not self.terminal_access and self._focused_is_terminal():
+                raise PermissionError("Terminal access is off. Enable it in Settings.")
         if self.on_engage:
             from clippy_xfce.gtkutil import run_on_ui
 
@@ -471,7 +531,6 @@ class ComputerUse:
                 run_on_ui(self.on_engage, timeout=2.0)
             except Exception:
                 pass
-        action = payload.get("action") or name
         coordinate = payload.get("coordinate")
         modifiers = payload.get("text") if action not in {"type", "key", "hold_key"} else None
         if action == "screenshot":

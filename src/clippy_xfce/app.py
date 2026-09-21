@@ -144,6 +144,7 @@ class ClippyApp(Gtk.Application):
             before_shot=self._hide_for_shot if self.settings.hide_self_in_screenshots else None,
             after_shot=self._show_after_shot if self.settings.hide_self_in_screenshots else None,
             on_engage=self._hide_from_computer if self.settings.computer_use else None,
+            terminal_access=self.settings.bash_tool,
         )
         self.flash = FlashWindow()
         self.flash.set_application(self)
@@ -531,6 +532,7 @@ class ClippyApp(Gtk.Application):
         if self.agent:
             self.agent.settings = self.settings
             self.agent.tool_mode = self.settings.tool_mode
+            self.agent.computer.terminal_access = self.settings.bash_tool
         if self.gate:
             self.gate.mode = self.settings.confirm_mode
         if self.bubble:

@@ -16,7 +16,8 @@ DANGEROUS_BASH = re.compile(
     \b(
         rm\s|shred|mkfs|dd\s|shutdown|reboot|halt|poweroff|
         sudo|doas|passwd|userdel|chmod\s+777|chown\s|
-        curl.+\|\s*(ba)?sh|wget.+\|\s*(ba)?sh
+        curl.+\|\s*(ba)?sh|wget.+\|\s*(ba)?sh|
+        xkill|killall|pkill|\bkill\s
     )
     """
 )
