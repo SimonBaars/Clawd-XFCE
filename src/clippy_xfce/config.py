@@ -52,7 +52,7 @@ SCREENSHOT_MODES = ("always", "ask", "never")
 class Settings:
     model: str = "claude-sonnet-5"
     max_tokens: int = 4096
-    max_iterations: int = 24
+    max_iterations: int = 0
     computer_use: bool = True
     bash_tool: bool = True
     editor_tool: bool = True
@@ -94,7 +94,7 @@ class Settings:
             copy.dodge_hold_key = "Shift"
         copy.scale = min(6.0, max(0.75, float(copy.scale)))
         copy.max_tokens = min(16000, max(256, int(copy.max_tokens)))
-        copy.max_iterations = min(60, max(1, int(copy.max_iterations)))
+        copy.max_iterations = min(500, max(0, int(copy.max_iterations)))
         copy.idle_seconds = min(60.0, max(2.0, float(copy.idle_seconds)))
         copy.config_version = max(1, int(copy.config_version or 1))
         return copy

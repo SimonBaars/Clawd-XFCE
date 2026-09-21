@@ -12,6 +12,9 @@ def test_sanitize_unknown_model():
     assert Settings().dodge_mouse is False
     assert Settings().dodge_hold_key == "Shift"
     assert Settings(dodge_hold_key="nope").sanitized().dodge_hold_key == "Shift"
+    assert Settings().max_iterations == 0
+    assert Settings(max_iterations=0).sanitized().max_iterations == 0
+    assert Settings(max_iterations=999).sanitized().max_iterations == 500
 
 
 def test_roundtrip(tmp_path, monkeypatch):

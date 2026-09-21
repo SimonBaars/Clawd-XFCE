@@ -74,8 +74,9 @@ class SettingsDialog(Gtk.Dialog):
         self.scale.set_value(settings.scale)
         self.tokens = Gtk.SpinButton.new_with_range(256, 16000, 256)
         self.tokens.set_value(settings.max_tokens)
-        self.iters = Gtk.SpinButton.new_with_range(1, 60, 1)
+        self.iters = Gtk.SpinButton.new_with_range(0, 500, 1)
         self.iters.set_value(settings.max_iterations)
+        self.iters.set_tooltip_text("0 means keep going until it finishes or you press Escape")
         self.hotkey = Gtk.Entry()
         self.hotkey.set_text(settings.hotkey)
         self.mascot = Gtk.ComboBoxText()
@@ -97,7 +98,7 @@ class SettingsDialog(Gtk.Dialog):
             ("Hold to keep still", self.dodge_hold),
             ("Mascot size", self.scale),
             ("Max tokens", self.tokens),
-            ("Max steps", self.iters),
+            ("Max steps (0 = none)", self.iters),
         ]
         for index, (label, widget) in enumerate(rows):
             grid.attach(Gtk.Label(label=label, xalign=0), 0, index, 1, 1)

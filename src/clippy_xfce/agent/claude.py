@@ -246,7 +246,13 @@ class ClippyAgent:
 
     def _loop(self) -> str:
         last_text = ""
-        for _ in range(self.settings.max_iterations):
+        limit = self.settings.max_iterations
+        step = 0
+        while True:
+            if limit and step >= limit:
+                self._emit("warn", "I ran out of steps before finishing.")
+                return last_text or "I ran out of steps before finishing."
+            step += 1
             if self.cancel.is_set():
                 self._emit("stopped", "Stopped.")
                 return last_text or "Stopped."
@@ -273,8 +279,6 @@ class ClippyAgent:
                 return last_text
             results = self._run_tools(tool_uses)
             self._append("user", results)
-        self._emit("warn", "I ran out of steps before finishing.")
-        return last_text or "I ran out of steps before finishing."
 
     def _run_tools(self, calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
