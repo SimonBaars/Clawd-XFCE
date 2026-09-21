@@ -1,3 +1,4 @@
+import threading
 import time
 
 from PIL import Image
@@ -67,3 +68,30 @@ def test_wait_is_short():
     start = time.time()
     computer.handle("wait", {"duration": 0.02})
     assert time.time() - start < 1
+
+
+def test_wait_stops_when_cancelled():
+    state = {"stop": False}
+    computer = ComputerUse(FakeComputer(), cancelled=lambda: state["stop"])
+    start = time.monotonic()
+
+    def flip() -> None:
+        time.sleep(0.06)
+        state["stop"] = True
+
+    threading.Thread(target=flip, daemon=True).start()
+    text, _ = computer.handle("wait", {"duration": 2})
+    assert text == "cancelled"
+    assert time.monotonic() - start < 0.6
+
+
+def test_cancelled_action_does_not_engage():
+    seen: list[str] = []
+    computer = ComputerUse(
+        FakeComputer(),
+        on_engage=lambda: seen.append("hide"),
+        cancelled=lambda: True,
+    )
+    text, _ = computer.handle("wait", {"duration": 0.01})
+    assert text == "cancelled"
+    assert seen == []

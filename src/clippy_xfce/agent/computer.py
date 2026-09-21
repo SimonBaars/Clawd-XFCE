@@ -335,6 +335,7 @@ class ComputerUse:
         before_shot: Callable[[], None] | None = None,
         after_shot: Callable[[], None] | None = None,
         on_engage: Callable[[], None] | None = None,
+        cancelled: Callable[[], bool] | None = None,
         max_edge: int = 2576,
     ) -> None:
         self.backend = backend or X11Computer()
@@ -343,6 +344,8 @@ class ComputerUse:
         self.before_shot = before_shot
         self.after_shot = after_shot
         self.on_engage = on_engage
+        self.cancelled = cancelled
+        self.suppress_escape = False
 
     def refresh_scaler(self) -> None:
         width, height = self.backend.size()
@@ -427,20 +430,40 @@ class ComputerUse:
         keys = parse_keys(spec)
         if not keys:
             raise ValueError("No key specified")
-        for _ in range(clamp(int(repeat or 1), 1, 100)):
-            tap_combo(self.backend, keys)
-            time.sleep(0.02)
+        self.suppress_escape = any(key == "Escape" for key in keys)
+        try:
+            for _ in range(clamp(int(repeat or 1), 1, 100)):
+                tap_combo(self.backend, keys)
+                time.sleep(0.02)
+        finally:
+            self.suppress_escape = False
         return f"pressed {spec} x{repeat}"
 
     def hold(self, spec: str, duration: float) -> str:
         keys = parse_keys(spec)
-        hold_keys(self.backend, keys, True)
-        time.sleep(min(300.0, max(0.0, float(duration))))
-        hold_keys(self.backend, keys, False)
+        self.suppress_escape = any(key == "Escape" for key in keys)
+        try:
+            hold_keys(self.backend, keys, True)
+            self._sleep(duration)
+            hold_keys(self.backend, keys, False)
+        finally:
+            self.suppress_escape = False
         return f"held {spec} for {duration}s"
+
+    def _cancelled(self) -> bool:
+        return bool(self.cancelled and self.cancelled())
+
+    def _sleep(self, seconds: float) -> None:
+        deadline = time.monotonic() + min(300.0, max(0.0, float(seconds)))
+        while time.monotonic() < deadline:
+            if self._cancelled():
+                return
+            time.sleep(0.05)
 
     def handle(self, name: str, payload: dict[str, Any]) -> tuple[str | bytes, bool]:
         """Return (text or png-bytes, is_image)."""
+        if self._cancelled():
+            return "cancelled", False
         if self.on_engage:
             from clippy_xfce.gtkutil import run_on_ui
 
@@ -490,8 +513,8 @@ class ComputerUse:
         if action == "hold_key":
             return self.hold(str(payload.get("text") or ""), float(payload.get("duration") or 0.5)), False
         if action == "wait":
-            time.sleep(min(300.0, max(0.0, float(payload.get("duration") or 0.5))))
-            return "waited", False
+            self._sleep(float(payload.get("duration") or 0.5))
+            return ("cancelled" if self._cancelled() else "waited"), False
         if action == "cursor_position":
             x, y = self.backend.pointer()
             sx, sy = self.scaler.to_shot(x, y)

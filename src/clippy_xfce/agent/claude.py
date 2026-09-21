@@ -334,6 +334,7 @@ class ClippyAgent:
         if (
             self.settings.computer_use
             and calls
+            and not self.cancel.is_set()
             and not any((c.get("name") in {"screenshot", "zoom"}) or (c.get("input") or {}).get("action") == "screenshot" for c in calls)
             and not failed
         ):

@@ -22,7 +22,7 @@ from clippy_xfce.ui.character import CharacterWindow
 from clippy_xfce.ui.confirm import ActionGate
 from clippy_xfce.ui.flash import FlashWindow
 from clippy_xfce.ui.history import replay_visible, run_history
-from clippy_xfce.ui.hotkey import HeldHotkey, bind_hotkey
+from clippy_xfce.ui.hotkey import EscapeWatch, HeldHotkey, bind_hotkey
 from clippy_xfce.ui.settings import run_settings
 from clippy_xfce.ui.theme import load_css
 from clippy_xfce.ui.tray import TrayIcon
@@ -42,7 +42,9 @@ class ClippyApp(Gtk.Application):
         self._steer: str | None = None
         self._save_timer = 0
         self._computer_away = False
+        self._stopping = False
         self._away_stop = HeldHotkey("Escape", self._stop)
+        self._escape_watch = EscapeWatch(self._stop, armed=self._escape_armed)
         self.ask_on_start = False
         self.pending_say = ""
 
@@ -75,6 +77,7 @@ class ClippyApp(Gtk.Application):
         return 0
 
     def do_shutdown(self) -> None:  # noqa: N802
+        self._escape_watch.stop()
         self._away_stop.release()
         if self.flash:
             self.flash.dismiss()
@@ -152,6 +155,7 @@ class ClippyApp(Gtk.Application):
             emit=self._on_event,
             confirm=self.gate.decide,
         )
+        computer.cancelled = lambda: self.agent.cancel.is_set() if self.agent else False
         self.agent.new_conversation()
 
         TrayIcon(
@@ -197,9 +201,19 @@ class ClippyApp(Gtk.Application):
         if self.bubble:
             self.bubble.restore_after_capture()
 
+    def _escape_armed(self) -> bool:
+        if self._stopping:
+            return False
+        if self.agent and getattr(self.agent.computer, "suppress_escape", False):
+            return False
+        return self._computer_away or bool(self._worker and self._worker.is_alive())
+
     def _hide_from_computer(self) -> None:
+        if self._stopping or (self.agent and self.agent.cancel.is_set()):
+            return
         self._computer_away = True
         self._away_stop.acquire()
+        self._escape_watch.start()
         if self.character:
             self.character.hide()
         if self.bubble:
@@ -208,16 +222,19 @@ class ClippyApp(Gtk.Application):
             Gtk.main_iteration_do(False)
 
     def _restore_from_computer(self) -> None:
-        if not self._computer_away:
-            return
-        self._computer_away = False
+        self._escape_watch.stop()
         self._away_stop.release()
         if self.flash:
             self.flash.dismiss()
+        hidden = self._computer_away
+        self._computer_away = False
         if self.character:
             self.character.show_all()
         if self.bubble:
-            self.show_bubble()
+            if hidden or not self.bubble.get_visible():
+                self.show_bubble()
+            else:
+                self.bubble.focus_input()
 
     def _flash(self, text: str, seconds: float) -> str:
         def go() -> str:
@@ -337,8 +354,9 @@ class ClippyApp(Gtk.Application):
             self.bubble.add_message("error", "Add an Anthropic API key in Settings first.")
             self._settings()
             return
+        self._stopping = False
         self.gate.reset_turn() if self.gate else None
-        self.bubble.set_busy(True, "Working on the desktop…  tray Stop or Ctrl+Alt+C to steer.")
+        self.bubble.set_busy(True, "Working…  Escape stops.")
         if self.character:
             self.character.play_mood("think", interrupt=True)
         prompt = text
@@ -362,6 +380,7 @@ class ClippyApp(Gtk.Application):
                 self.bubble.add_message("user", nxt)
             self._ask(nxt)
             return
+        self._stopping = False
         self._restore_from_computer()
         if self.bubble:
             self.bubble.set_busy(False, "Ready to help.")
@@ -370,17 +389,18 @@ class ClippyApp(Gtk.Application):
 
     def _stop(self) -> None:
         busy = bool(self._worker and self._worker.is_alive())
-        if not busy:
+        if not busy or self._stopping:
             return
+        self._stopping = True
         self._steer = None
         if self.agent:
             self.agent.stop()
+        self._restore_from_computer()
         if self.bubble:
-            self.bubble.set_status("Stopping…")
+            self.bubble.set_busy(False, "Stopped. Tell me what to do instead.")
             self.bubble.add_message("system", "Stopped. Tell me what to do instead.")
         if self.character:
             self.character.play_mood("error", interrupt=True)
-        self._restore_from_computer()
 
     def _toggle_pause(self) -> None:
         if not self.agent:

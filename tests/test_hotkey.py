@@ -1,4 +1,4 @@
-from clippy_xfce.ui.hotkey import HeldHotkey
+from clippy_xfce.ui.hotkey import EscapeWatch, HeldHotkey
 
 
 def test_held_hotkey_binds_once(monkeypatch):
@@ -41,3 +41,17 @@ def test_held_hotkey_retries_after_failed_bind(monkeypatch):
     assert held.bound is False
     assert held.acquire() is True
     assert binds == ["Escape", "Escape"]
+
+
+def test_escape_watch_fires_on_press_edge():
+    hits: list[int] = []
+    watch = EscapeWatch(lambda: hits.append(1))
+    watch._keycode = 9
+    watch._display = object()
+    states = iter([False, True, True, False])
+    watch.query_down = lambda: next(states)
+    watch._poll()
+    watch._poll()
+    watch._poll()
+    watch._poll()
+    assert hits == [1]
